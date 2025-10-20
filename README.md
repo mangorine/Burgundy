@@ -4,4 +4,4 @@ BOARD GAME : CASTLES OF BURGUNDY
 
 # Rules of the game
 
-Rules of the games here : [Voir le PDF](rules_burgundy.pdf)
+Rules of the games here : [Rules](rules_burgundy.pdf)
