@@ -54,27 +54,150 @@ class Region:
         return True
 
     def scored(self) -> None:
-        """A appeler qd la region score pour pas qu'elle re rapporte des points"""
+        """A appeler qd la region score pour pas qu'elle re rapporte
+        des points"""
         self.has_scored = True
 
 
 LAYOUTS = {
     1: {
-        # Exemple de layout
-        (0, 0): TileType.CASTLE,
-        (1, 0): TileType.SHIP,
-        (2, 0): TileType.SHIP,
-        (3, 0): TileType.SHIP,
+        # r = -3 (q = 0..3)
+        (0, -3): TileType.CASTLE,
+        (1, -3): TileType.CASTLE,
+        (2, -3): TileType.KNOWLEDGE,
+        (3, -3): TileType.BUILDING,
+        # r = -2 (q = -1..3)
+        (-1, -2): TileType.CASTLE,
+        (0, -2): TileType.ANIMAL,
+        (1, -2): TileType.KNOWLEDGE,
+        (2, -2): TileType.BUILDING,
+        (3, -2): TileType.BUILDING,
+        # r = -1 (q = -2..3)
+        (-2, -1): TileType.ANIMAL,
+        (-1, -1): TileType.ANIMAL,
+        (0, -1): TileType.BUILDING,
+        (1, -1): TileType.KNOWLEDGE,
+        (2, -1): TileType.MINE,
+        (3, -1): TileType.SHIP,
+        # r = 0 (q = -3..3)
+        (-3, 0): TileType.ANIMAL,
+        (-2, 0): TileType.BUILDING,
         (-1, 0): TileType.SHIP,
-        (-2, 0): TileType.SHIP,
-        (-3, 0): TileType.SHIP,
+        (0, 0): TileType.SHIP,
+        (1, 0): TileType.SHIP,
+        (2, 0): TileType.BUILDING,
+        (3, 0): TileType.MINE,
+        # r = 1 (q = -3..2)
+        (-3, 1): TileType.ANIMAL,
+        (-2, 1): TileType.SHIP,
+        (-1, 1): TileType.MINE,
+        (0, 1): TileType.BUILDING,
+        (1, 1): TileType.BUILDING,
+        (2, 1): TileType.MINE,
+        # r = 2 (q = -3..1)
+        (-3, 2): TileType.SHIP,
+        (-2, 2): TileType.MINE,
+        (-1, 2): TileType.MINE,
+        (0, 2): TileType.KNOWLEDGE,
+        (1, 2): TileType.KNOWLEDGE,
+        # r = 3 (q = -3..0)
+        (-3, 3): TileType.BUILDING,
+        (-2, 3): TileType.MINE,
+        (-1, 3): TileType.MINE,
+        (0, 3): TileType.KNOWLEDGE,
+    },
+    2: {
+        # r = -3 (q = 0..3)
+        (0, -3): TileType.SHIP,
+        (1, -3): TileType.ANIMAL,
+        (2, -3): TileType.ANIMAL,
+        (3, -3): TileType.CASTLE,
+        # r = -2 (q = -1..3)
+        (-1, -2): TileType.SHIP,
+        (0, -2): TileType.BUILDING,
+        (1, -2): TileType.ANIMAL,
+        (2, -2): TileType.KNOWLEDGE,
+        (3, -2): TileType.BUILDING,
+        # r = -1 (q = -2..3)
+        (-2, -1): TileType.ANIMAL,
+        (-1, -1): TileType.BUILDING,
         (0, -1): TileType.BUILDING,
-        (0, -1): TileType.BUILDING,
-        (0, -1): TileType.BUILDING,
-        (0, -1): TileType.BUILDING,
-        (0, -1): TileType.BUILDING,
-        (0, -1): TileType.BUILDING,
-    }
+        (1, -1): TileType.KNOWLEDGE,
+        (2, -1): TileType.BUILDING,
+        (3, -1): TileType.BUILDING,
+        # r = 0 (q = -3..3)
+        (-3, 0): TileType.ANIMAL,
+        (-2, 0): TileType.BUILDING,
+        (-1, 0): TileType.KNOWLEDGE,
+        (0, 0): TileType.KNOWLEDGE,
+        (1, 0): TileType.BUILDING,
+        (2, 0): TileType.KNOWLEDGE,
+        (3, 0): TileType.ANIMAL,
+        # r = 1 (q = -3..2)
+        (-3, 1): TileType.KNOWLEDGE,
+        (-2, 1): TileType.BUILDING,
+        (-1, 1): TileType.MINE,
+        (0, 1): TileType.MINE,
+        (1, 1): TileType.BUILDING,
+        (2, 1): TileType.SHIP,
+        # r = 2 (q = -3..1)
+        (-3, 2): TileType.BUILDING,
+        (-2, 2): TileType.MINE,
+        (-1, 2): TileType.MINE,
+        (0, 2): TileType.KNOWLEDGE,
+        (1, 2): TileType.SHIP,
+        # r = 3 (q = -3..0)
+        (-3, 3): TileType.CASTLE,
+        (-2, 3): TileType.SHIP,
+        (-1, 3): TileType.SHIP,
+        (0, 3): TileType.ANIMAL,
+    },
+    3: {
+        # r = -3 (q = 0..3)
+        (0, -3): TileType.KNOWLEDGE,
+        (1, -3): TileType.KNOWLEDGE,
+        (2, -3): TileType.ANIMAL,
+        (3, -3): TileType.SHIP,
+        # r = -2 (q = -1..3)
+        (-1, -2): TileType.KNOWLEDGE,
+        (0, -2): TileType.KNOWLEDGE,
+        (1, -2): TileType.ANIMAL,
+        (2, -2): TileType.SHIP,
+        (3, -2): TileType.SHIP,
+        # r = -1 (q = -2..3)
+        (-2, -1): TileType.BUILDING,
+        (-1, -1): TileType.MINE,
+        (0, -1): TileType.KNOWLEDGE,
+        (1, -1): TileType.SHIP,
+        (2, -1): TileType.BUILDING,
+        (3, -1): TileType.BUILDING,
+        # r = 0 (q = -3..3)
+        (-3, 0): TileType.BUILDING,
+        (-2, 0): TileType.MINE,
+        (-1, 0): TileType.BUILDING,
+        (0, 0): TileType.CASTLE,
+        (1, 0): TileType.KNOWLEDGE,
+        (2, 0): TileType.BUILDING,
+        (3, 0): TileType.BUILDING,
+        # r = 1 (q = -3..2)
+        (-3, 1): TileType.BUILDING,
+        (-2, 1): TileType.MINE,
+        (-1, 1): TileType.KNOWLEDGE,
+        (0, 1): TileType.KNOWLEDGE,
+        (1, 1): TileType.SHIP,
+        (2, 1): TileType.ANIMAL,
+        # r = 2 (q = -3..1)
+        (-3, 2): TileType.ANIMAL,
+        (-2, 2): TileType.ANIMAL,
+        (-1, 2): TileType.MINE,
+        (0, 2): TileType.MINE,
+        (1, 2): TileType.KNOWLEDGE,
+        # r = 3 (q = -3..0)
+        (-3, 3): TileType.ANIMAL,
+        (-2, 3): TileType.BUILDING,
+        (-1, 3): TileType.BUILDING,
+        (0, 3): TileType.CASTLE,
+    },
 }
 
 
@@ -136,8 +259,3 @@ class HexMap:
                     if neighbor not in visited:
                         to_visit.append(neighbor)
         return region_coords
-
-
-class PlayerBoard:
-    def __init__(self, map: HexMap):
-        self.map = map
