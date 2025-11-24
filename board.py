@@ -101,7 +101,7 @@ LAYOUTS = {
         (1, 1): TileType.BUILDING,
         (2, 1): TileType.ANIMAL,
         # r = 2 (q = -3..1)
-        (-3, 2): TileType.BULDING,
+        (-3, 2): TileType.BUILDING,
         (-2, 2): TileType.MINE,
         (-1, 2): TileType.KNOWLEDGE,
         (0, 2): TileType.BUILDING,
@@ -658,7 +658,7 @@ class Board:
 PlayerBoard(layout_id=1)
 Piece_Animal = Animal(AnimalType.CATTLE, 3, Color.RED)
 Tile_animal = Tile(TileType.ANIMAL, False)
-Tile.tile = Piece_Animal
+Tile_animal.tile = Piece_Animal
 board = PlayerBoard(layout_id=1)
-board.place_tile(Tile_animal, (0, -2), 1)
+board.place_tile(Tile_animal, (0, -3), 1)
 print("runned")
