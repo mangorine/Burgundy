@@ -1,6 +1,6 @@
-import yellow_tiles
-import yellow_tiles_list
-import player
+from yellow_tiles import *
+from yellow_tiles_list import *
+from players import *
 
 import random
 
