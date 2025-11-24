@@ -7,6 +7,8 @@ class Color(Enum):
     YELLOW = "yellow"
     BLACK = "black"
     WHITE = "white"
+
+
 class AnimalType(Enum):
     CATTLE = "cattle"
     CHICKEN = "chicken"

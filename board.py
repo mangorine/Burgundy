@@ -16,6 +16,8 @@ class TileType(Enum):
 class Tile:
     def __init__(self, tile_type: TileType, is_black: bool = False):
         self.tile_type = tile_type
+        self.is_black = is_black
+        self.tile = None
 
 
 class Slot:
@@ -65,49 +67,49 @@ class Region:
 LAYOUTS = {
     1: {
         # r = -3 (q = 0..3)
-        (0, -3): TileType.CASTLE,
+        (0, -3): TileType.ANIMAL,
         (1, -3): TileType.CASTLE,
-        (2, -3): TileType.KNOWLEDGE,
-        (3, -3): TileType.BUILDING,
+        (2, -3): TileType.CASTLE,
+        (3, -3): TileType.KNOWLEDGE,
         # r = -2 (q = -1..3)
-        (-1, -2): TileType.CASTLE,
+        (-1, -2): TileType.ANIMAL,
         (0, -2): TileType.ANIMAL,
-        (1, -2): TileType.KNOWLEDGE,
-        (2, -2): TileType.BUILDING,
+        (1, -2): TileType.CASTLE,
+        (2, -2): TileType.KNOWLEDGE,
         (3, -2): TileType.BUILDING,
         # r = -1 (q = -2..3)
         (-2, -1): TileType.ANIMAL,
         (-1, -1): TileType.ANIMAL,
         (0, -1): TileType.BUILDING,
         (1, -1): TileType.KNOWLEDGE,
-        (2, -1): TileType.MINE,
-        (3, -1): TileType.SHIP,
+        (2, -1): TileType.BUILDING,
+        (3, -1): TileType.BUILDING,
         # r = 0 (q = -3..3)
-        (-3, 0): TileType.ANIMAL,
-        (-2, 0): TileType.BUILDING,
+        (-3, 0): TileType.SHIP,
+        (-2, 0): TileType.SHIP,
         (-1, 0): TileType.SHIP,
-        (0, 0): TileType.SHIP,
+        (0, 0): TileType.CASTLE,
         (1, 0): TileType.SHIP,
-        (2, 0): TileType.BUILDING,
-        (3, 0): TileType.MINE,
+        (2, 0): TileType.SHIP,
+        (3, 0): TileType.SHIP,
         # r = 1 (q = -3..2)
-        (-3, 1): TileType.ANIMAL,
-        (-2, 1): TileType.SHIP,
+        (-3, 1): TileType.BUILDING,
+        (-2, 1): TileType.BUILDING,
         (-1, 1): TileType.MINE,
         (0, 1): TileType.BUILDING,
         (1, 1): TileType.BUILDING,
-        (2, 1): TileType.MINE,
+        (2, 1): TileType.ANIMAL,
         # r = 2 (q = -3..1)
-        (-3, 2): TileType.SHIP,
+        (-3, 2): TileType.BUILDING,
         (-2, 2): TileType.MINE,
-        (-1, 2): TileType.MINE,
-        (0, 2): TileType.KNOWLEDGE,
-        (1, 2): TileType.KNOWLEDGE,
+        (-1, 2): TileType.KNOWLEDGE,
+        (0, 2): TileType.BUILDING,
+        (1, 2): TileType.BUILDING,
         # r = 3 (q = -3..0)
-        (-3, 3): TileType.BUILDING,
-        (-2, 3): TileType.MINE,
-        (-1, 3): TileType.MINE,
-        (0, 3): TileType.KNOWLEDGE,
+        (-3, 3): TileType.MINE,
+        (-2, 3): TileType.KNOWLEDGE,
+        (-1, 3): TileType.KNOWLEDGE,
+        (0, 3): TileType.BUILDING,
     },
     2: {
         # r = -3 (q = 0..3)
@@ -652,8 +654,10 @@ class Board:
         print("Black depot:", [t.tile_type.name for t in self.black_depot])
 
 
-if __name__ == "main":
-    PlayerBoard(layout_id=1)
-    Piece_Animal = Animal(AnimalType.CATTLE, 3, Color.RED)
-    board = Board(seed=42)
-    board.debug_print_state()
+PlayerBoard(layout_id=1)
+Piece_Animal = Animal(AnimalType.CATTLE, 3, Color.RED)
+Tile_animal = Tile(TileType.ANIMAL, False)
+Tile_animal.tile = Piece_Animal
+board = PlayerBoard(layout_id=1)
+board.place_tile(Tile_animal, (0, -3), 1)
+print("runned")
