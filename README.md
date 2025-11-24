@@ -55,3 +55,7 @@ Before each phase : [Phase](game_tuto.png)
 
 # things to do Emilie:
 check the action of every yellow tiles and add modifications where the action is taken into account
+
+# things to do:
+make a method that checks whether you can put a tile in your board (vicinity + building in the same town)
+after that: Emilie adds a method to implement yellow tile n°1
