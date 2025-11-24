@@ -1,8 +1,18 @@
 from enum import Enum
 from typing import Optional, Dict, List, Tuple, Set
 import random
-import "animals.py"
-import "buildings.py"
+from animals import *
+from buildings import *
+
+
+class Color(Enum):
+    RED = "red"
+    BLUE = "blue"
+    GREEN = "green"
+    YELLOW = "yellow"
+    BLACK = "black"
+    WHITE = "white"
+
 
 class TileType(Enum):
     CASTLE = "castle"
@@ -14,7 +24,8 @@ class TileType(Enum):
 
 
 class Tile:
-    tile_type: TileType
+    def __init__(self, tile_type: TileType, is_black: bool = False):
+        self.tile_type = tile_type
 
 
 class Slot:
@@ -332,7 +343,7 @@ class PlayerBoard:
         if coord not in self.hex_map.grid:
             return False
         slot = self.hex_map.get_slot(coord)
-        return slot.can_place(tile)
+        return slot.can_place_tile(tile)
 
     def place_tile(
         self, tile: Tile, coord: Tuple[int, int], current_round: int
@@ -651,5 +662,7 @@ class Board:
 
 
 if __name__ == "main":
+    PlayerBoard(layout_id=1)
+    Piece_Animal = Animal(AnimalType.CATTLE, 3, Color.RED)
     board = Board(seed=42)
     board.debug_print_state()
