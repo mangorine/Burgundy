@@ -1,8 +1,18 @@
 from enum import Enum
 from typing import Optional, Dict, List, Tuple, Set
 import random
-import "animals.py"
-import "buildings.py"
+from animals import *
+from buildings import *
+
+
+class Color(Enum):
+    RED = "red"
+    BLUE = "blue"
+    GREEN = "green"
+    YELLOW = "yellow"
+    BLACK = "black"
+    WHITE = "white"
+
 
 class TileType(Enum):
     CASTLE = "castle"
@@ -14,7 +24,8 @@ class TileType(Enum):
 
 
 class Tile:
-    tile_type: TileType
+    def __init__(self, tile_type: TileType, is_black: bool = False):
+        self.tile_type = tile_type
 
 
 class Slot:
@@ -321,7 +332,7 @@ class PlayerBoard:
                     return region
         return None
 
-    def can_place_tile_at(self, tile: Tile, coord: Tuple[int, int]) -> bool:
+    def can_place_tile_at(self, tile: Tile, coord: Tuple[int, int]) -> Optional[bool]:
         """
         Vérifie si la tuile peut être placée sur ce coord :
         - coord existe
@@ -332,7 +343,7 @@ class PlayerBoard:
         if coord not in self.hex_map.grid:
             return False
         slot = self.hex_map.get_slot(coord)
-        return slot.can_place(tile)
+        return slot.can_place_tile(tile)
 
     def place_tile(
         self, tile: Tile, coord: Tuple[int, int], current_round: int
@@ -347,16 +358,17 @@ class PlayerBoard:
             raise ValueError(f"Illegal placement at {coord} for tile {tile}")
 
         slot = self.hex_map.get_slot(coord)
-        slot.place_tile(tile)
+        if slot:
+            slot.place_tile(tile)
 
         # Vérifier complétion de la région qui contient ce slot
         region = self.get_region_by_coord(coord)
         region_completed_now = False
         region_size = region.size() if region else 0
 
-        if region and region.is_complete() and not region.has_scored:
+        if region and region.is_completed() and not region.has_scored:
             region_completed_now = True
-            region.mark_completed(current_round)
+            region.scored(current_round)
 
         # Renvoie des infos que le moteur de jeu (Game / VictoryPointTracker) peut utiliser
         return {
@@ -371,7 +383,7 @@ class PlayerBoard:
 
     def get_all_completed_regions(self) -> List[Region]:
         """Utile en fin de partie pour scorer les bonus qui dépendent des regions complètes."""
-        return [r for r in self.regions if r.is_complete()]
+        return [r for r in self.regions if r.is_completed()]
 
     def debug_print_board(self) -> None:
         """
@@ -651,5 +663,7 @@ class Board:
 
 
 if __name__ == "main":
+    PlayerBoard(layout_id=1)
+    Piece_Animal = Animal(AnimalType.CATTLE, 3, Color.RED)
     board = Board(seed=42)
     board.debug_print_state()
