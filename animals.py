@@ -1,5 +1,13 @@
 from enum import Enum
 
+class Color(Enum):
+    RED = "red"
+    BLUE = "blue"
+    GREEN = "green"
+    YELLOW = "yellow"
+    BLACK = "black"
+    WHITE = "white"
+
 
 class AnimalType(Enum):
     CATTLE = "cattle"
