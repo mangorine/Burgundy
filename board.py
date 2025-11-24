@@ -213,8 +213,8 @@ class HexMap:
         #  celle du joueur
         self.grid: Dict[Tuple[int, int], Slot] = {}
         all_coords = []
-        for q in range(-3, -3 - 1):
-            for r in range(-3, -3 - 1):
+        for q in range(-3, 3 + 1):
+            for r in range(-3, 3 + 1):
                 if -3 <= q + r <= 3:
                     all_coords.append((q, r))
         layout = LAYOUTS.get(layout_id, {})
@@ -336,7 +336,14 @@ class PlayerBoard:
         if coord not in self.hex_map.grid:
             return False
         slot = self.hex_map.get_slot(coord)
-        return slot.can_place_tile(tile)
+        neighbors = self.hex_map.get_neighbors(coord)
+        neighors_occupied = False
+        for neigh in neighbors:
+            neighor_slot = self.hex_map.get_slot(neigh)
+            if neighor_slot.is_occupied:
+                neighors_occupied = True
+                break
+        return slot.can_place_tile(tile) and (neighors_occupied)
 
     def place_tile(
         self, tile: Tile, coord: Tuple[int, int], current_round: int
