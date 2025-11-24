@@ -1,5 +1,6 @@
 from enum import Enum
 from typing import Optional, Dict, List, Tuple, Set
+import random
 
 
 class TileType(Enum):
@@ -378,3 +379,271 @@ class PlayerBoard:
         """
         for coord, slot in sorted(self.hex_map.grid.items()):
             print(coord, slot.allowed_type, "OCCUPIED" if slot.is_occupied else "free")
+
+
+# temp for goods and tiles
+class GoodsColor(Enum):
+    """
+    Type de marchandise (correspond aux 6 couleurs de tuiles marchandises).
+    La couleur réelle n'a pas d'importance pour le moteur, juste l'identité.
+    """
+
+    COLOR_1 = 1
+    COLOR_2 = 2
+    COLOR_3 = 3
+    COLOR_4 = 4
+    COLOR_5 = 5
+    COLOR_6 = 6
+
+
+class GoodsTile:
+    """
+    Tuile marchandise (carrée dans le jeu physique).
+    """
+
+    def __init__(self, color: GoodsColor) -> None:
+        self.color = color
+
+
+class Board:
+    """
+    Plateau central des Châteaux de Bourgogne (version base, 4 joueurs).
+
+    Il gère :
+    - les 6 dépôts numérotés (1–6) contenant des tuiles hexagonales
+    - le dépôt noir central
+    - les marchandises sur les dépôts
+    - les phases (A–E) et manches (1–5 / phase)
+    - les piles de tuiles à piocher (hex et noires) et les piles de marchandises
+
+    Remarque : ici on se concentre sur la logique de distribution / prise de tuiles.
+    Tout ce qui concerne le score, l’argent, les ouvriers, etc. est plutôt du
+    ressort d’une classe Game / Engine par dessus. :contentReference[oaicite:1]{index=1}
+    """
+
+    PHASES = ("A", "B", "C", "D", "E")
+
+    def __init__(self, seed: Optional[int] = None) -> None:
+        # Pour l’instant on implémente le plateau 4 joueurs (recto du plateau)
+        self._rng = random.Random(seed)
+
+        # Dépôts numérotés 1..6 -> liste de tuiles
+        self.depots: Dict[int, List[Tile]] = {i: [] for i in range(1, 7)}
+        # Marchandises posées sur chaque dépôt
+        self.depot_goods: Dict[int, List[GoodsTile]] = {i: [] for i in range(1, 7)}
+        # Dépôt noir (8 tuiles noires / phase)
+        self.black_depot: List[Tile] = []
+
+        # Pioches
+        self._hex_supply: List[Tile] = self._build_colored_hex_supply()
+        self._black_supply: List[Tile] = self._build_black_hex_supply()
+
+        # Marchandises : 42 tuiles, 7 de chaque couleur, réparties en 5 piles de phase
+        self._goods_stacks_by_phase: List[List[GoodsTile]] = self._build_goods_stacks()
+        # Ce qui reste peut servir à distribuer 3 marchandises à chaque joueur au setup
+        self.remaining_goods_for_players: List[GoodsTile] = []
+
+        # Phase / manche
+        self.current_phase_index: int = -1  # -1 => pas encore démarré
+        self.round_in_phase: int = 0  # 0..5 (0 = pas encore joué de manche)
+        # Pile de 5 marchandises pour la phase courante (une par manche)
+        self._current_phase_round_goods: List[GoodsTile] = []
+
+        # Démarre la phase A
+        self.start_next_phase()
+
+    # pioches
+
+    def _build_colored_hex_supply(self) -> List[Tile]:
+        """
+        Construit la pioche des tuiles « normales » (non noires).
+
+        D’après le matériel de jeu de la version de base : 40 bâtiments,
+        20 animaux, 20 monastères, 14 châteaux, 10 mines, 20 bateaux,
+        soit 124 tuiles. :contentReference[oaicite:2]{index=2}
+
+        Complexité : O(N) pour N tuiles construites.
+        """
+        supply: List[Tile] = []
+        supply.extend(Tile(TileType.BUILDING) for _ in range(40))
+        supply.extend(Tile(TileType.ANIMAL) for _ in range(20))
+        supply.extend(Tile(TileType.KNOWLEDGE) for _ in range(20))
+        supply.extend(Tile(TileType.CASTLE) for _ in range(14))
+        supply.extend(Tile(TileType.MINE) for _ in range(10))
+        supply.extend(Tile(TileType.SHIP) for _ in range(20))
+        self._rng.shuffle(supply)
+        return supply
+
+    def _build_black_hex_supply(self) -> List[Tile]:
+        """
+        Construit la pioche des tuiles noires (dépôt central).
+
+        Comptage d’après les règles : 16 bâtiments noirs, 8 animaux noirs,
+        6 monastères noirs, 2 châteaux noirs, 2 mines noires, 6 bateaux noirs,
+        soit 40 tuiles (exactement 8 par phase). :contentReference[oaicite:3]{index=3}
+
+        Complexité : O(N).
+        """
+        supply: List[Tile] = []
+        supply.extend(Tile(TileType.BUILDING, is_black=True) for _ in range(16))
+        supply.extend(Tile(TileType.ANIMAL, is_black=True) for _ in range(8))
+        supply.extend(Tile(TileType.KNOWLEDGE, is_black=True) for _ in range(6))
+        supply.extend(Tile(TileType.CASTLE, is_black=True) for _ in range(2))
+        supply.extend(Tile(TileType.MINE, is_black=True) for _ in range(2))
+        supply.extend(Tile(TileType.SHIP, is_black=True) for _ in range(6))
+        self._rng.shuffle(supply)
+        return supply
+
+    def _build_goods_stacks(self) -> List[List[GoodsTile]]:
+        """
+        Construit les 5 piles de marchandises (A..E), 5 tuiles chacune.
+
+        Les règles indiquent 42 marchandises, 7 de chaque couleur. On en
+        utilise 25 pour les phases, le reste pour distribuer 3 tuiles à chaque
+        joueur au setup. :contentReference[oaicite:4]{index=4}
+
+        Complexité : O(G) pour G marchandises.
+        """
+        goods: List[GoodsTile] = []
+        for color in GoodsColor:
+            goods.extend(GoodsTile(color) for _ in range(7))
+        self._rng.shuffle(goods)
+
+        stacks: List[List[GoodsTile]] = []
+        for i in range(5):
+            stacks.append(goods[i * 5 : (i + 1) * 5])
+        self.remaining_goods_for_players = goods[25:]
+        return stacks
+
+    # phases
+
+    @property
+    def current_phase(self) -> str:
+        """Renvoie la lettre de phase actuelle ('A'..'E'). O(1)."""
+        if self.current_phase_index < 0:
+            return "?"
+        return self.PHASES[self.current_phase_index]
+
+    def start_next_phase(self) -> None:
+        """
+        Passe à la phase suivante (A → B → ... → E) et met en place :
+        - vidage des dépôts (mais pas les marchandises déjà posées)
+        - remplissage des 6 dépôts numérotés (4 tuiles chacun)
+        - remplissage du dépôt noir (8 tuiles)
+        - préparation des 5 marchandises de manche pour la phase
+
+        Complexité : O(D + T) où D = nombre de dépôts (constante 7),
+        T = tuiles à distribuer (constante par phase).
+        """
+        if self.current_phase_index + 1 >= len(self.PHASES):
+            raise RuntimeError("Tous les tours sont déjà terminés.")
+
+        self.current_phase_index += 1
+        self.round_in_phase = 0
+
+        # Vider les dépôts de tuiles (les marchandises restent)
+        for depot_id in range(1, 7):
+            self.depots[depot_id].clear()
+        self.black_depot.clear()
+
+        # Re-remplir les dépôts numérotés : 4 tuiles chacun en 4 joueurs
+        for depot_id in range(1, 7):
+            for _ in range(4):
+                if not self._hex_supply:
+                    raise RuntimeError("Plus de tuiles hex à distribuer.")
+                self.depots[depot_id].append(self._hex_supply.pop())
+
+        # Re-remplir le dépôt noir : 8 tuiles
+        for _ in range(8):
+            if not self._black_supply:
+                raise RuntimeError("Plus de tuiles noires à distribuer.")
+            self.black_depot.append(self._black_supply.pop())
+
+        # Préparer les marchandises de la phase courante
+        self._current_phase_round_goods = list(
+            self._goods_stacks_by_phase[self.current_phase_index]
+        )
+
+    def is_phase_over(self) -> bool:
+        """Retourne True si les 5 manches de la phase sont jouées. O(1)."""
+        return self.round_in_phase >= 5
+
+    def advance_round(self, white_die_result: int) -> Optional[GoodsTile]:
+        """
+        Avance d'une manche :
+        - prend la prochaine marchandise de la piste de manche
+        - la place sur le dépôt correspondant au résultat du dé blanc
+
+        Renvoie la marchandise posée (ou None si plus de marchandise).
+
+        Complexité : O(1).
+        """
+        if not (1 <= white_die_result <= 6):
+            raise ValueError("white_die_result doit être entre 1 et 6.")
+
+        if self.is_phase_over():
+            # Pas d'erreur sévère : simplement aucune marchandise à poser
+            return None
+
+        goods_tile = self._current_phase_round_goods[self.round_in_phase]
+        self.depot_goods[white_die_result].append(goods_tile)
+        self.round_in_phase += 1
+        return goods_tile
+
+    # actions du jeu
+
+    def take_hex_from_depot(self, depot_id: int) -> Tile:
+        """
+        Retire et renvoie une tuile hex du dépôt numéroté donné.
+
+        Utilisée pour l'action « prendre une tuile du plateau ». :contentReference[oaicite:5]{index=5}
+
+        Complexité : O(1) sur la taille de la liste de ce dépôt.
+        """
+        if depot_id not in self.depots:
+            raise ValueError(f"Depot {depot_id} does not exist.")
+        if not self.depots[depot_id]:
+            raise ValueError(f"Depot {depot_id} is empty.")
+        return self.depots[depot_id].pop()
+
+    def take_hex_from_black_depot(self) -> Tile:
+        """
+        Retire et renvoie une tuile du dépôt noir central (achat pour 2 argent).
+
+        Complexité : O(1).
+        """
+        if not self.black_depot:
+            raise ValueError("Black depot is empty.")
+        return self.black_depot.pop()
+
+    def take_all_goods_from_depot(self, depot_id: int) -> List[GoodsTile]:
+        """
+        Utilisée quand un joueur place un bateau : il prend toutes les
+        marchandises d'un dépôt de son choix. :contentReference[oaicite:6]{index=6}
+
+        Renvoie la liste des marchandises et vide ce dépôt.
+
+        Complexité : O(k) où k est le nombre de marchandises sur ce dépôt.
+        """
+        if depot_id not in self.depot_goods:
+            raise ValueError(f"Depot {depot_id} does not exist.")
+        goods = self.depot_goods[depot_id]
+        self.depot_goods[depot_id] = []
+        return goods
+
+    def debug_print_state(self) -> None:
+        """
+        Affichage texte simple de l’état du plateau central
+        (pour debug / tests manuels). O(D + G).
+
+        D = nombre de dépôts, G = nombre de marchandises.
+        """
+        print(f"Phase {self.current_phase} / round {self.round_in_phase + 1}")
+        print("Depots:")
+        for depot_id in range(1, 7):
+            tiles = self.depots[depot_id]
+            goods = self.depot_goods[depot_id]
+            tile_types = [t.tile_type.name for t in tiles]
+            goods_colors = [g.color.name for g in goods]
+            print(f"  {depot_id}: hex={tile_types}  goods={goods_colors}")
+        print("Black depot:", [t.tile_type.name for t in self.black_depot])
