@@ -224,6 +224,9 @@ class HexMap:
             else:
                 allowed_type = layout[coord]
             self.grid[coord] = Slot(coord, allowed_type)
+        # temp for layout1
+        slot = self.get_slot((0, 0))
+        slot.place_tile(Tile(TileType.CASTLE))
 
     def get_slot(self, coord: Tuple[int, int]) -> Optional[Slot]:
         """Retourne le slot a la coordonnee donnee"""
@@ -336,6 +339,7 @@ class PlayerBoard:
         if coord not in self.hex_map.grid:
             return False
         slot = self.hex_map.get_slot(coord)
+        # check if there are neighors nearby that are occupied
         neighbors = self.hex_map.get_neighbors(coord)
         neighors_occupied = False
         for neigh in neighbors:
@@ -343,6 +347,8 @@ class PlayerBoard:
             if neighor_slot.is_occupied:
                 neighors_occupied = True
                 break
+        # check if same tile is in same region ( except for animals )
+
         return slot.can_place_tile(tile) and (neighors_occupied)
 
     def place_tile(
