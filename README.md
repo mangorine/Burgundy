@@ -51,3 +51,7 @@ We create a class Action with the following actions:
 # How the game works
 
 Before each phase : [Phase](game_tuto.png)
+
+
+# things to do Emilie:
+check the action of every yellow tiles and add modifications where the action is taken into account
