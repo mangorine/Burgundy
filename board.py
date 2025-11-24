@@ -1,7 +1,8 @@
 from enum import Enum
 from typing import Optional, Dict, List, Tuple, Set
 import random
-
+import "animals.py"
+import "buildings.py"
 
 class TileType(Enum):
     CASTLE = "castle"
@@ -647,3 +648,8 @@ class Board:
             goods_colors = [g.color.name for g in goods]
             print(f"  {depot_id}: hex={tile_types}  goods={goods_colors}")
         print("Black depot:", [t.tile_type.name for t in self.black_depot])
+
+
+if __name__ == "main":
+    board = Board(seed=42)
+    board.debug_print_state()
