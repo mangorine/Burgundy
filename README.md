@@ -57,5 +57,10 @@ Before each phase : [Phase](game_tuto.png)
 check the action of every yellow tiles and add modifications where the action is taken into account
 
 # things to do:
+BIG THING: finish board, player board
+            then create a real player.py which will be connected to the two last files
+             change the methods with the yellow tiles
+
+little things, example of things to do in the last part:
 make a method that checks whether you can put a tile in your board (vicinity + building in the same town)
 after that: Emilie adds a method to implement yellow tile n°1
