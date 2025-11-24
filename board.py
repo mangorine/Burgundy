@@ -4,16 +4,6 @@ import random
 from animals import *
 from buildings import *
 
-
-class Color(Enum):
-    RED = "red"
-    BLUE = "blue"
-    GREEN = "green"
-    YELLOW = "yellow"
-    BLACK = "black"
-    WHITE = "white"
-
-
 class TileType(Enum):
     CASTLE = "castle"
     BUILDING = "building"
