@@ -212,8 +212,8 @@ class HexMap:
         #  celle du joueur
         self.grid: Dict[Tuple[int, int], Slot] = {}
         all_coords = []
-        for q in range(-3, -3 + 1):
-            for r in range(-3, -3 + 1):
+        for q in range(-3, 3 + 1):
+            for r in range(-3, 3 + 1):
                 if -3 <= q + r <= 3:
                     all_coords.append((q, r))
         layout = LAYOUTS.get(layout_id, {})
