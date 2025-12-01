@@ -668,10 +668,12 @@ class Board:
         print("Black depot:", [t.tile_type.name for t in self.black_depot])
 
 
-PlayerBoard(layout_id=1)
-Piece_Animal = Animal(AnimalType.CATTLE, 3, Color.RED)
-Tile_animal = Tile(TileType.ANIMAL, False)
-Tile_animal.tile = Piece_Animal
-board = PlayerBoard(layout_id=1)
-board.place_tile(Tile_animal, (0, -3), 1)
-print("runned")
+# tests
+if __name__ == "__main__":
+    PlayerBoard(layout_id=1)
+    Piece_Animal = Animal(AnimalType.CATTLE, 3, Color.RED)
+    Tile_animal = Tile(TileType.ANIMAL, False)
+    Tile_animal.tile = Piece_Animal
+    board = PlayerBoard(layout_id=1)
+    board.place_tile(Tile_animal, (0, -3), 1)
+    print("runned")
