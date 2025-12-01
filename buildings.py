@@ -1,36 +1,6 @@
 from enum import Enum
 from abc import ABC, abstractmethod
-
-class BuildingType(Enum):
-    CASTLE = "castle"
-    MINE = "mine"
-    WAREHOUSE = "warehouse"
-    WORKSHOP = "carpeter's workshop"
-    CHURCH = "church"
-    MARKET = "market"
-    HOUSE = "boarding house"
-    BANK = "bank"
-    CITYHALL = "city hall"
-    WATCHTOWER = "watchtower"
-
-class Building:
-    def __init__(self, name, color=None, description="", on_place=None, on_phase_end=None, immediate_action=False):
-        self.color = color
-        self.name = name
-        self.description = description
-        self.on_place = on_place
-        self.on_phase_end = on_phase_end
-        self.immediate_action = immediate_action
-
-    def trigger_on_place(self, player, game_state):
-        if self.on_place:
-            self.on_place(player, game_state)
-
-    def trigger_on_phase_end(self, player, game_state):
-        if self.on_phase_end:
-            self.on_phase_end(player, game_state)
-
-    
+from typing import List, Optional
 
 def castle_effect(player):
     """
@@ -113,65 +83,27 @@ def watchtower_effect(player, game_state):
     Watchtower: Immediately score 4 victory points.
     """
     ...
+class BuildingType(Enum):
+    WAREHOUSE = "warehouse"
+    WORKSHOP = "carpeter's workshop"
+    CHURCH = "church"
+    MARKET = "market"
+    HOUSE = "boarding house"
+    BANK = "bank"
+    CITYHALL = "city hall"
+    WATCHTOWER = "watchtower"
 
-BUILDINGS = {
-    "CASTLE": Building(
-        name="Castle",
-        description="gives one action of any kind",
-        on_place=castle_effect,
-        immediate_action=True
-    ),
-    "MINE": Building(
-        name="Mine",
-        description="Gives one silverling at the end of the phase (on le call à la fin du coup)",
-        on_phase_end=mine_effect
-    ),
-    "WAREHOUSE": Building(
-        name="Warehouse",
-        description="Immediately allows the player to sell one good of their choice.",
-        on_place=warehouse_effect,
-        immediate_action=True
-    ),
-    "WORKSHOP": Building(
-        name="Carpenter's Workshop",
-        description="Takes the building tile of his choice (beige)",
-        on_place=workshop_effect,
-        immediate_action=True,
-    ),
-    "CHURCH": Building(
-        name="Church",
-        description="Takes the mine, knowledge or castle tile of his choice (c'est op wesh)",
-        on_place=church_effect,
-        immediate_action=True,
-    ),
-    "MARKET": Building(
-        name="Market",
-        description="Allows the player to take any animal or ship.",
-        on_place=market_effect,
-        immediate_action=True,
-    ),
-    "HOUSE": Building(
-        name="Boarding House",
-        description="Player takes 4 worker tiles",
-        on_place=house_effect,
-        immediate_action=True,
-    ),
-    "BANK": Building(
-        name="Bank",
-        description="Gain 2 silverlings",
-        on_place=bank_effect,
-        immediate_action=True,
-    ),
-    "CITYHALL": Building(
-        name="City Hall",
-        description="Immediately place one additional yellow (knowledge) tile from your storage.",
-        on_place=cityhall_effect,
-        immediate_action=True,
-    ),
-    "WATCHTOWER": Building(
-        name="Watchtower",
-        description="Immediately score 4 victory points.",
-        on_place=watchtower_effect,
-        immediate_action=True,
-    ),
-}
+Effects = {BuildingType.WAREHOUSE: warehouse_effect,
+           BuildingType.WORKSHOP: workshop_effect,
+           BuildingType.CHURCH: church_effect,
+           BuildingType.MARKET: market_effect,
+           BuildingType.HOUSE: house_effect,
+           BuildingType.BANK: bank_effect,
+           BuildingType.CITYHALL: cityhall_effect,
+           BuildingType.WATCHTOWER: watchtower_effect,
+          }
+
+class Building:
+    def __init__(self, type: BuildingType):
+        self.type = type
+        self.effect = Effects[type]
