@@ -3,6 +3,7 @@ from typing import Optional, Dict, List, Tuple, Set
 import random
 from animals import *
 from buildings import *
+from Player_brouillon import *
 
 
 class TileType(Enum):
@@ -47,6 +48,7 @@ class Region:
         self.slots = slots[:]
         self.allowed_type = allowed_type
         self.has_scored = False
+        self.score_round = -1
 
     def size(self) -> int:
         """Retourne la taille de la region"""
@@ -59,10 +61,11 @@ class Region:
                 return False
         return True
 
-    def scored(self) -> None:
+    def scored(self, score_round) -> None:
         """A appeler qd la region score pour pas qu'elle re rapporte
         des points"""
         self.has_scored = True
+        self.score_round = score_round
 
 
 LAYOUTS = {
@@ -276,12 +279,14 @@ class PlayerBoard:
     - les checks de complétion de région
     """
 
-    def __init__(self, layout_id: int):
+    def __init__(self, layout_id: int, player: Player):
         # construit la grille selon le duché choisi
         self.hex_map = HexMap(layout_id=layout_id)
 
         # régions pré-calculées à partir de la map
         self.regions: List[Region] = self._build_regions()
+
+        self.player = player
 
     def _build_regions(self) -> List[Region]:
         """
@@ -343,7 +348,12 @@ class PlayerBoard:
             if neighor_slot.is_occupied:
                 neighors_occupied = True
                 break
-        return slot.can_place_tile(tile) and (neighors_occupied)
+        region = self.get_region_by_coord(coord)
+        if region.allowed_type == TileType.ANIMAL or tile.tile_type in self.player.yellow_effects:
+            allowed = True
+        else:
+            allowed = False
+        return slot.can_place_tile(tile) and (neighors_occupied) and allowed
 
     def place_tile(
         self, tile: Tile, coord: Tuple[int, int], current_round: int
