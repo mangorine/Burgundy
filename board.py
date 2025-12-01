@@ -224,7 +224,7 @@ class HexMap:
             else:
                 allowed_type = layout[coord]
             self.grid[coord] = Slot(coord, allowed_type)
-        # temp for layout1
+        # temp for layout1, first castle is placed
         slot = self.get_slot((0, 0))
         slot.place_tile(Tile(TileType.CASTLE))
 
@@ -670,10 +670,17 @@ class Board:
 
 # tests
 if __name__ == "__main__":
-    PlayerBoard(layout_id=1)
-    Piece_Animal = Animal(AnimalType.CATTLE, 3, Color.RED)
+    # Exemple d'utilsation de Playerboard
+    # créer une cîèce animal, vient d'un autre fichier
+    Piece_Animal = Animal(AnimalType.CATTLE, 3)
     Tile_animal = Tile(TileType.ANIMAL, False)
     Tile_animal.tile = Piece_Animal
     board = PlayerBoard(layout_id=1)
-    board.place_tile(Tile_animal, (0, -3), 1)
+    # créer une pièce building
+    # Piece_Building = Building("Test Building")
+    # créer une pièce ship
+    Tile_ship = Tile(TileType.SHIP, False)
+    # aucune limitation, mais renvoie illegal placement si c'est un mauvais placement
+    # board.place_tile(Tile_animal, (0, -3), 1)
+    board.place_tile(Tile_ship, (1, 0), 1)
     print("runned")
