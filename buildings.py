@@ -1,6 +1,21 @@
 from enum import Enum
-from abc import ABC, abstractmethod
-from typing import List, Optional
+from dataclasses import dataclass
+
+
+class BuildingType(Enum):
+    WAREHOUSE = "warehouse"
+    WORKSHOP = "carpenter's workshop"
+    CHURCH = "church"
+    MARKET = "market"
+    HOUSE = "boarding house"
+    BANK = "bank"
+    CITYHALL = "city hall"
+    WATCHTOWER = "watchtower"
+
+
+@dataclass(frozen=True)
+class Building:
+    building_type: BuildingType
 
 
 def castle_effect(player):
@@ -92,17 +107,6 @@ def watchtower_effect(player, game_state):
     ...
 
 
-class BuildingType(Enum):
-    WAREHOUSE = "warehouse"
-    WORKSHOP = "carpeter's workshop"
-    CHURCH = "church"
-    MARKET = "market"
-    HOUSE = "boarding house"
-    BANK = "bank"
-    CITYHALL = "city hall"
-    WATCHTOWER = "watchtower"
-
-
 Effects = {
     BuildingType.WAREHOUSE: warehouse_effect,
     BuildingType.WORKSHOP: workshop_effect,
@@ -113,9 +117,3 @@ Effects = {
     BuildingType.CITYHALL: cityhall_effect,
     BuildingType.WATCHTOWER: watchtower_effect,
 }
-
-
-class Building:
-    def __init__(self, type: BuildingType):
-        self.type = type
-        self.effect = Effects[type]

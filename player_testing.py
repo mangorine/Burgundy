@@ -1,16 +1,14 @@
 from dataclasses import dataclass, field
-from typing import List, Set, Optional
+from typing import List, Set
 
-# On suppose que ce fichier est dans le même module que ton code,
-# donc Tile, GoodsTile, PlayerBoard, TileType sont déjà définis plus haut
-# ou importés depuis ton module "boards".
+# Import your existing board-related classes
+from board import PlayerBoard, Tile, GoodsTile, TileType
 
-# from boards import Tile, GoodsTile, PlayerBoard  # si séparé
+# Import animals
 from animals import Animal, AnimalType
-from buildings import (
-    Building,
-    BuildingType,
-)  # + éventuellement Knowledge, KnowledgeType
+
+# Import buildings / knowledge
+from buildings import Building, BuildingType
 
 
 @dataclass
@@ -30,7 +28,7 @@ class Player:
     """
 
     name: str
-    layout_id: int
+    layout_id: int = 1
     board: "PlayerBoard" = field(init=False)
 
     silverlings: int = 0
@@ -51,7 +49,6 @@ class Player:
     def __post_init__(self) -> None:
         """
         Initialise le PlayerBoard après la création du Player.
-        Complexité : O(N) où N = nombre de cases du PlayerBoard.
         """
         self.board = PlayerBoard(self.layout_id)
 
@@ -62,21 +59,18 @@ class Player:
     def gain_victory_points(self, amount: int) -> None:
         """
         Ajoute des points de victoire au joueur.
-        Complexité : O(1).
         """
         self.victory_points += amount
 
     def gain_silverlings(self, amount: int) -> None:
         """
         Ajoute des écus.
-        Complexité : O(1).
         """
         self.silverlings += amount
 
     def spend_silverlings(self, amount: int) -> None:
         """
         Dépense des écus, lève une erreur si pas assez.
-        Complexité : O(1).
         """
         if self.silverlings < amount:
             raise ValueError(f"{self.name} n'a pas assez d'écus.")
@@ -85,14 +79,12 @@ class Player:
     def gain_workers(self, amount: int) -> None:
         """
         Ajoute des ouvriers.
-        Complexité : O(1).
         """
         self.workers += amount
 
     def spend_workers(self, amount: int) -> None:
         """
         Dépense des ouvriers, lève une erreur si pas assez.
-        Complexité : O(1).
         """
         if self.workers < amount:
             raise ValueError(f"{self.name} n'a pas assez d'ouvriers.")
@@ -107,14 +99,12 @@ class Player:
         Vérifie si le joueur peut encore stocker une tuile hex.
 
         Dans le jeu de base : 3 emplacements.
-        Complexité : O(1).
         """
         return len(self.hex_storage) < 3
 
     def add_hex_to_storage(self, tile: "Tile") -> None:
         """
         Ajoute une tuile hex à la réserve du joueur.
-        Complexité : O(1) amorti (append).
         """
         if not self.can_store_hex_tile():
             raise ValueError(f"{self.name} ne peut pas stocker plus de tuiles.")
@@ -123,8 +113,6 @@ class Player:
     def remove_hex_from_storage(self, index: int) -> "Tile":
         """
         Retire une tuile hex de la réserve, par index (0,1,2).
-
-        Complexité : O(1) pour pop sur liste.
         """
         if not (0 <= index < len(self.hex_storage)):
             raise IndexError("Index de stockage invalide.")
@@ -137,7 +125,6 @@ class Player:
     def add_goods(self, goods: List["GoodsTile"]) -> None:
         """
         Ajoute des marchandises à la réserve du joueur.
-        Complexité : O(k) pour k marchandises ajoutées.
         """
         self.goods_storage.extend(goods)
 
@@ -146,8 +133,6 @@ class Player:
         Vend toutes les marchandises d'une couleur donnée.
 
         Renvoie le nombre de marchandises vendues (pour calculer PV, argent, etc.).
-
-        Complexité : O(n) sur n marchandises en stock.
         """
         remaining: List[GoodsTile] = []
         sold = 0
@@ -166,14 +151,11 @@ class Player:
     def add_yellow_effect(self, effect: object) -> None:
         """
         Ajoute un effet de tuile jaune (KnowledgeType par ex.) au set.
-
-        Complexité : O(1) en moyenne (set.add).
         """
         self.yellow_effects.add(effect)
 
     def has_yellow_effect(self, effect: object) -> bool:
         """
         Vérifie si le joueur possède un effet jaune donné.
-        Complexité : O(1) en moyenne.
         """
         return effect in self.yellow_effects

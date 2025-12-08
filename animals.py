@@ -1,13 +1,33 @@
-from enum import Enum
+from dataclasses import dataclass
+from enum import Enum, auto
+
 
 class AnimalType(Enum):
-    CATTLE = "cattle"
-    CHICKEN = "chicken"
-    GOAT = "goat"
-    PIG = "pig"
-    SHEEP = "sheep"
+    """
+    Types d'animaux possibles sur les tuiles vertes.
 
+    """
+
+    SHEEP = auto()
+    PIG = auto()
+    CATTLE = auto()
+    CHICKEN = auto()
+    GOAT = auto()
+
+
+@dataclass(frozen=True)
 class Animal:
-    def __init__(self, type: AnimalType, quantity: int) -> None:
-        self.type = type
-        self.quantity = quantity
+    """
+    Représente une tuile Animal.
+    """
+
+    animal_type: AnimalType
+    count: int = 1  # valeur par défaut
+
+    def score_within_region(self, same_type_tiles_in_region: int) -> int:
+        """
+        Calcule le score fourni par cette tuile dans une région donnée.
+        """
+        if same_type_tiles_in_region <= 0:
+            return 0
+        return self.count * same_type_tiles_in_region

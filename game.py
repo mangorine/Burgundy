@@ -1,18 +1,18 @@
 from typing import List, Optional, Dict, Any
 
-# On suppose que tout ça est dans le même module que ton code original.
-# Sinon, adapte les imports : from boards import Board, Tile, TileType, GoodsTile, PlayerBoard
-# Ici, TileType, Board, GoodsTile, PlayerBoard, Player, etc. sont déjà définis.
+# Import your board & tile engine
+from board import Board, Tile, TileType, GoodsTile
 
+# Import Player class from your new file
+from player_testing import Player
+
+# Import animals
 from animals import Animal, AnimalType
+
+# Import buildings / knowledge
 from buildings import Building, BuildingType
 
-# Si tu as une classe Knowledge / KnowledgeType pour les tuiles jaunes :
-try:
-    from buildings import Knowledge, KnowledgeType  # ou autre module
-except ImportError:
-    Knowledge = object  # fallback pour éviter les crash si non dispo
-    KnowledgeType = object
+from yellow_tiles_list import *
 
 
 class Game:
@@ -29,7 +29,6 @@ class Game:
     def __init__(
         self,
         player_names: List[str],
-        layouts: List[int],
         seed: Optional[int] = None,
     ) -> None:
         """
@@ -38,16 +37,11 @@ class Game:
         - player_names : liste des noms ("Alice", "Bob", ...)
         - layouts : liste des layout_id pour chaque joueur (ex : [1,2,3,1])
         - seed : graine pour le random du Board
-
-        Complexité : O(P * N) où P = nb joueurs, N = taille d'un PlayerBoard.
         """
-        if len(player_names) != len(layouts):
-            raise ValueError("Il faut autant de noms que de layout_id.")
 
         self.board = Board(seed=seed)
         self.players: List[Player] = [
-            Player(name=player_names[i], layout_id=layouts[i])
-            for i in range(len(player_names))
+            Player(name=player_names[i], layout_id=1) for i in range(len(player_names))
         ]
 
         # Index du joueur courant dans la liste players
@@ -64,14 +58,12 @@ class Game:
     def current_player(self) -> Player:
         """
         Renvoie le joueur courant.
-        Complexité : O(1).
         """
         return self.players[self.current_player_index]
 
     def next_player(self) -> None:
         """
         Passe au joueur suivant (ordre simple pour l'instant).
-        Complexité : O(1).
         """
         self.current_player_index = (self.current_player_index + 1) % len(self.players)
 
@@ -83,8 +75,6 @@ class Game:
         """
         Action : le joueur courant prend une tuile hex du dépôt donné
         et la met dans sa réserve perso.
-
-        Complexité : O(1) (Board.take_hex_from_depot + Player.add_hex_to_storage).
         """
         player = self.current_player
         if not player.can_store_hex_tile():
@@ -96,8 +86,6 @@ class Game:
     def action_take_hex_from_black_depot(self) -> None:
         """
         Action : le joueur courant achète une tuile noire pour 2 écus.
-
-        Complexité : O(1).
         """
         player = self.current_player
         player.spend_silverlings(2)
@@ -108,8 +96,6 @@ class Game:
         """
         Action complémentaire : prendre toutes les marchandises d'un dépôt
         (par exemple après avoir posé un bateau).
-
-        Complexité : O(k) où k = nb de marchandises dans le dépôt.
         """
         player = self.current_player
         goods = self.board.take_all_goods_from_depot(depot_id)
@@ -130,12 +116,6 @@ class Game:
         - current_round : numéro de manche/round global
         - extra_context : infos supplémentaires pour certains effets
             (ex : choix du dépôt pour un bateau, couleur à vendre, etc.)
-
-        Complexité :
-        - O(1) pour retirer de la réserve
-        - O(1) pour la pose (ton PlayerBoard)
-        - O(k) pour l'effet de la tuile (k dépend du type, ex taille de région)
-        -> O(k) global.
         """
         if extra_context is None:
             extra_context = {}
@@ -167,8 +147,6 @@ class Game:
     ) -> None:
         """
         Dispatch sur le bon sous-type de tuile.
-
-        Complexité : O(1) + coût de la fonction appelée.
         """
         ttype = tile.tile_type
 
@@ -207,8 +185,6 @@ class Game:
 
         building_obj est une instance de ta classe Building
         (avec un BuildingType accessible).
-
-        Complexité : O(1) en général (les effets sont locaux).
         """
         btype = getattr(building_obj, "building_type", None)
 
@@ -243,20 +219,14 @@ class Game:
         Les mines n'ont pas d'effet immédiat : elles rapportent de l'argent en fin de phase.
 
         Ici, on ne fait rien. On s'en sert dans end_phase().
-
-        Complexité : O(1).
         """
         return
 
     def end_phase(self) -> None:
         """
         À appeler quand une phase (A..E) se termine.
-
         - Distribue l'argent des mines
         - Passe à la phase suivante sur Board
-
-        Complexité : O(P * N) où P = nb joueurs, N = nb de cases du PlayerBoard
-        (on parcourt les slots pour compter les mines).
         """
         # 1) Mines → argent
         for player in self.players:
@@ -290,8 +260,6 @@ class Game:
         Ici :
         - on augmente turn_order_position de 1
         - on prend les marchandises du dépôt choisi dans ctx["goods_depot_choice"]
-
-        Complexité : O(1) + O(k) pour k marchandises sur le dépôt.
         """
         # 1) Avancer sur la piste (simplifié)
         player.turn_order_position += 1
@@ -317,8 +285,6 @@ class Game:
 
         Ici, on les enregistre dans player.yellow_effects via leur "knowledge_type"
         si disponible, sinon via l'objet lui-même.
-
-        Complexité : O(1).
         """
         ktype = getattr(knowledge_obj, "knowledge_type", knowledge_obj)
         player.add_yellow_effect(ktype)
@@ -346,8 +312,6 @@ class Game:
         - animal_obj.animal_type (enum)
         - animal_obj.count = nb d'animaux sur la tuile
         - score = count * (nombre total de tuiles de ce type dans la région)
-
-        Complexité : O(S) où S = taille de la région.
         """
         region = player.board.get_region_by_coord(coord)
         if region is None:
@@ -386,9 +350,7 @@ class Game:
         une autre action principale.
 
         Ici, on note simplement dans le contexte qu'une action bonus est disponible.
-        C'est à l'UI / IA de l'exploiter.
-
-        Complexité : O(1).
+        C'est à l'UI de l'exploiter.
         """
         ctx["castle_bonus_action_available"] = True
 
@@ -407,8 +369,6 @@ class Game:
 
         Tu pourras ensuite adapter au vrai barème BoB
         (plus tu complètes tôt, plus tu marques).
-
-        Complexité : O(1).
         """
         size = placement_result.get("region_size", 0)
         player.gain_victory_points(size)
