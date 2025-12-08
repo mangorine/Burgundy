@@ -170,7 +170,7 @@ class Game:
         if placement_result.get("region_completed_now", False):
             self._apply_region_completion_bonus(player, placement_result)
 
-    # ---------- BUILDINGS ----------
+        # ---------- BUILDINGS ----------
 
     def _apply_building_effect(
         self,
@@ -181,28 +181,157 @@ class Game:
         ctx: Dict[str, Any],
     ) -> None:
         """
-        Applique l'effet d'un bâtiment (green tile).
+        Applique l'effet d'un bâtiment (tuile beige).
 
-        building_obj est une instance de ta classe Building
-        (avec un BuildingType accessible).
+        Paramètres
+        ----------
+        player : Player
+            Joueur qui vient de poser la tuile.
+        building_obj : Building
+            Tuile de bâtiment (avec un BuildingType).
+        coord : (int, int)
+            Coordonnée où la tuile a été posée.
+        placement_result : dict
+            Résultat renvoyé par PlayerBoard.place_tile (taille de région, etc.).
+        ctx : dict
+            Contexte contenant les choix du joueur pour certains effets.
+
+        Clés attendues dans ctx
+        -----------------------
+        - WAREHOUSE :
+            "goods_depot_choice" : int,
+                numéro de dépôt de marchandises à vider.
+        - WORKSHOP :
+            "workshop_depot_choice" : int,
+                dépôt d’où prendre une tuile BUILDING pour la réserve.
+        - CHURCH :
+            "church_depot_choice" : int,
+                dépôt d’où prendre une tuile (mine/knowledge/château en théorie).
+        - MARKET :
+            "market_depot_choice" : int,
+                dépôt d’où prendre une tuile (ship/animal en théorie).
+        - CITYHALL :
+            "cityhall_extra_action": {
+                "storage_index": int,
+                "coord": (q, r),
+                "current_round": int,
+                "extra_context": dict  # contexte pour la 2e tuile
+            }
         """
+
         btype = getattr(building_obj, "building_type", None)
 
-        # Exemple concret : WAREHOUSE (ton test l'utilise déjà)
-        # -> Le joueur choisit un dépôt de marchandises et prend tout.
+        # 1) WAREHOUSE : comme dans ta version actuelle
+        #    -> choisir un dépôt de marchandises, tout prendre + PV
         if btype == BuildingType.WAREHOUSE:
             depot_id = ctx.get("goods_depot_choice")
             if depot_id is None:
-                # Pas de choix fourni : on ne fait rien (ou lever une erreur selon ta logique).
+                # Pas de choix => pas d'effet
                 return
+
             goods = self.board.take_all_goods_from_depot(depot_id)
             player.add_goods(goods)
-            # Petit bonus générique de PV (optionnel) :
+            # Bonus : 1 PV par marchandise prise
             player.gain_victory_points(len(goods))
+            return
 
+        # 2) WORKSHOP : prendre une tuile BUILDING d’un dépôt numéroté
+        #    et la mettre dans la réserve du joueur
+        elif btype == BuildingType.WORKSHOP:
+            depot_id = ctx.get("workshop_depot_choice")
+            if depot_id is None:
+                return
+
+            try:
+                new_tile = self.board.take_hex_from_depot(depot_id)
+            except ValueError:
+                # Dépôt vide / inexistant : effet perdu
+                return
+
+            if not player.can_store_hex_tile():
+                # Pas de place en réserve -> on "perd" la tuile
+                return
+
+            player.add_hex_to_storage(new_tile)
+            return
+
+        # 3) CHURCH : prendre une tuile "spéciale" d’un dépôt
+        #    (mine / knowledge / château dans les vraies règles)
+        elif btype == BuildingType.CHURCH:
+            depot_id = ctx.get("church_depot_choice")
+            if depot_id is None:
+                return
+
+            try:
+                new_tile = self.board.take_hex_from_depot(depot_id)
+            except ValueError:
+                return
+
+            if not player.can_store_hex_tile():
+                return
+
+            player.add_hex_to_storage(new_tile)
+            return
+
+        # 4) MARKET : prendre une tuile (typiquement SHIP ou ANIMAL)
+        #    d’un dépôt numéroté et la mettre en réserve
+        elif btype == BuildingType.MARKET:
+            depot_id = ctx.get("market_depot_choice")
+            if depot_id is None:
+                return
+
+            try:
+                new_tile = self.board.take_hex_from_depot(depot_id)
+            except ValueError:
+                return
+
+            if not player.can_store_hex_tile():
+                return
+
+            player.add_hex_to_storage(new_tile)
+            return
+
+        # 5) HOUSE (Boarding house) : +4 ouvriers
+        elif btype == BuildingType.HOUSE:
+            player.gain_workers(4)
+            return
+
+        # 6) BANK : +2 silverlings
+        elif btype == BuildingType.BANK:
+            player.gain_silverlings(2)
+            return
+
+        # 7) CITYHALL : poser immédiatement une 2e tuile depuis la réserve
+        elif btype == BuildingType.CITYHALL:
+            extra = ctx.get("cityhall_extra_action") or {}
+            storage_index = extra.get("storage_index")
+            extra_coord = extra.get("coord")
+
+            if storage_index is None or extra_coord is None:
+                # Pas de 2e action définie => pas d’effet
+                return
+
+            current_round = extra.get("current_round", 0)
+            nested_ctx = extra.get("extra_context", {})
+
+            # IMPORTANT : on NE touche PAS à self.current_player
+            # on réutilise simplement la logique standard de pose
+            self.action_place_tile_from_storage(
+                storage_index,
+                extra_coord,
+                current_round,
+                nested_ctx,
+            )
+            return
+
+        # 8) WATCHTOWER : +4 PV immédiats
+        elif btype == BuildingType.WATCHTOWER:
+            player.gain_victory_points(4)
+            return
+
+        # 9) Fallback (au cas où tu ajoutes un nouveau BuildingType
+        #    sans encore coder son effet)
         else:
-            # Effet standard générique pour les autres bâtiments :
-            # par exemple +2 PV à chaque bâtiment posé.
             player.gain_victory_points(2)
 
     # ---------- MINES ----------
