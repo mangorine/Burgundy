@@ -32,7 +32,13 @@ class Player:
         self.goods = {} ####!!!!!!!!!! taille du disctionnaire à majorer par 3
 
         # Effets jaunes actifs sur le joueur
-        self.yellow_effects = []  
+        self.yellow_effects = set()  
+
+        self.hex_storage = []
+
+        self.manche = 1
+        self.has_bought = False # à modifier à chacun des tours dans le nouveau fichier
+        self.phase = "A"
 
 
     
@@ -45,10 +51,12 @@ class Player:
         self.used_dice = [False, False]
 
     def exchange_dice(self,dice_idx : int):
+        if 13 in self.yellow_effects:
+            self.silver += 1
+        if 14 in self.yellow_effects:
+            self.workers += 2
         self.used_dice[dice_idx] = True
         self.workers += 2
-        ### à voir...
-        # EMILIE DOIT IMPLEMENTER YELLOW_TILE[13,14]
 
     def adjust_dice(self, dice_idx, delta):
         if 8 in self.yellow_effects:
@@ -73,10 +81,6 @@ class Player:
             new_val = ((old_val - 1 + delta) % 6) + 1
             self.dice[dice_idx] = new_val
 
-        ### PAS SURE DE LA FORMULATION
-        
-            ### EMILIE doit implémenter le 1 worker compte pour un écart de 2
-
     def gain_goods(self, good_type, amount=1):
         if good_type in self.goods.keys():
             self.goods[good_type] = self.goods[good_type] + amount 
@@ -89,24 +93,29 @@ class Player:
             raise ValueError("Aucune marchandise à vendre !")
         self.silver += 1
         self.goods[good_type] =0
-        # PAS SURE ATTENTION
-        if yellow_tile[3] in PlayerBoard:
+        if 3 in self.yellow_effects:
             self.silver += 1
-        if yellow_tile[4] in PlayerBoard:
+        if 4 in self.yellow_effects:
             self.workers += 1
 
-    def gain_silver(self, amount):
-        self.silver += amount
-
-    def spend_silver(self, amount):
+    def spend_silver(self, amount, black_tile):
+        if 6 in self.yellow_effects:
+            pass
+        # le joueur a le choix de dépenser ou des workers ou des pièces pour acheter 
+        # des black tiles ou des marchandises directement -> faire interagir ???
+        if self.has_bought == True:
+            raise ValueError("Vous avez déjà acheté durant cette manche !")
         if self.silver < amount:
             raise ValueError("Pas assez de pièces !")
         self.silver -= amount
         ##DOIT AJOUTER LA PIECE à l'espace de stockage 
-        # -> appeler des fonctions pour discard au cas où etc
-
-        ## ICI EMILIE AJOUTE LES EFFETS DE LA YELLOW_TILE[6]
-
+        if len(self.hex_storage) < 3:
+            self.hex_storage.append(black_tile)
+        else:
+            ### ON SAIT PAS ENCORE COMMENT GERER CA
+            # -> appeler des fonctions pour discard au cas où etc
+            raise ValueError("L'espace de stockage est trop plein .")
+        
     def can_place(self, position, tile):
         """
         Vérifie simplement que la case existe et est vide.
@@ -124,6 +133,14 @@ class Player:
             raise ValueError("Placement de tuile impossible !")
         self.board[position] = tile
         self.apply_tile_effect(tile)
+        if 9 in self.yellow_effects:
+            pass
+        if 10 in self.yellow_effects:
+            pass
+        if 11 in self.yellow_effects:
+            pass
+        if 12 in self.yellow_effects:
+            pass
         ### pas sure EMILIE IMPLEMENTE YELLOW_TILE[9,10,11,12]
         if tile.type == BUILDING:
             pass
