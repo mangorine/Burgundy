@@ -1,6 +1,8 @@
 
 from random import randint
 from board import *
+from yellow_tiles import *
+from yellow_tiles_list import *
 
 class Player:
     """
@@ -49,23 +51,30 @@ class Player:
         # EMILIE DOIT IMPLEMENTER YELLOW_TILE[13,14]
 
     def adjust_dice(self, dice_idx, delta):
-        """Utilise des ouvriers pour modifier un dé de +1/-1 par ouvrier, avec wrap-around modulo 6."""
-        cost = abs(delta)
-        if self.workers < cost:
-            raise ValueError("Pas assez d'ouvriers pour ajuster le dé !")
-    
-        self.workers -= cost
-    
-        # valeurs de dé entre 1 et 6
-        old_val = self.dice[dice_idx]
-        
-        # modulo 6 avec valeurs 1 → 6
-        new_val = ((old_val - 1 + delta) % 6) + 1
-    
-        self.dice[dice_idx] = new_val
+        if 8 in self.yellow_effects:
+            delta_abs = abs(delta)
+            # cost minimal: each worker can provide 1 or 2 points of adjustment
+            cost = delta_abs // 2 + delta_abs % 2
+            if self.workers < cost:
+                raise ValueError("Pas assez d'ouvriers pour ajuster le dé !")
+            self.workers -= cost
+            old_val = self.dice[dice_idx]
+            # wrap-around in [1..6]
+            new_val = ((old_val - 1 + delta) % 6) + 1
+            self.dice[dice_idx] = new_val
+        else: 
+            cost = abs(delta)
+            if self.workers < cost:
+                raise ValueError("Pas assez d'ouvriers pour ajuster le dé !")
+            self.workers -= cost
+            # valeurs de dé entre 1 et 6
+            old_val = self.dice[dice_idx]
+            # modulo 6 avec valeurs 1 → 6
+            new_val = ((old_val - 1 + delta) % 6) + 1
+            self.dice[dice_idx] = new_val
+
         ### PAS SURE DE LA FORMULATION
-        if yellow_tiles[8] in PlayerBoard:
-            pass
+        
             ### EMILIE doit implémenter le 1 worker compte pour un écart de 2
 
     def gain_goods(self, good_type, amount=1):
