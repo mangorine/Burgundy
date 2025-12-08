@@ -42,19 +42,26 @@ class Player:
         self.dice = [randint(1,6),randint(1,6)]
         self.used_dice = [False, False]
 
-    def exchange_dice(self):
-         # test
-        pass
+    def exchange_dice(self,dice_idx : int):
+        self.used_dice[dice_idx] = True
+        self.workers += 2
         ### à voir...
         # EMILIE DOIT IMPLEMENTER YELLOW_TILE[13,14]
 
     def adjust_dice(self, dice_idx, delta):
-        """Utilise des ouvriers pour modifier un dé de +1/-1 par ouvrier."""
+        """Utilise des ouvriers pour modifier un dé de +1/-1 par ouvrier, avec wrap-around modulo 6."""
         cost = abs(delta)
         if self.workers < cost:
             raise ValueError("Pas assez d'ouvriers pour ajuster le dé !")
+    
         self.workers -= cost
-        new_val = self.dice[dice_idx] + delta
+    
+        # valeurs de dé entre 1 et 6
+        old_val = self.dice[dice_idx]
+        
+        # modulo 6 avec valeurs 1 → 6
+        new_val = ((old_val - 1 + delta) % 6) + 1
+    
         self.dice[dice_idx] = new_val
         ### PAS SURE DE LA FORMULATION
         if yellow_tiles[8] in PlayerBoard:
