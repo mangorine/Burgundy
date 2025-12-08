@@ -3,6 +3,7 @@ from typing import Optional, Dict, List, Tuple, Set
 import random
 from animals import *
 from buildings import *
+from Player_brouillon import *
 
 
 class TileType(Enum):
@@ -47,6 +48,7 @@ class Region:
         self.slots = slots[:]
         self.allowed_type = allowed_type
         self.has_scored = False
+        self.score_round = -1
 
     def size(self) -> int:
         """Retourne la taille de la region"""
@@ -59,10 +61,11 @@ class Region:
                 return False
         return True
 
-    def scored(self) -> None:
+    def scored(self, score_round) -> None:
         """A appeler qd la region score pour pas qu'elle re rapporte
         des points"""
         self.has_scored = True
+        self.score_round = score_round
 
 
 LAYOUTS = {
@@ -224,6 +227,9 @@ class HexMap:
             else:
                 allowed_type = layout[coord]
             self.grid[coord] = Slot(coord, allowed_type)
+        # temp for layout1, first castle is placed
+        slot = self.get_slot((0, 0))
+        slot.place_tile(Tile(TileType.CASTLE))
 
     def get_slot(self, coord: Tuple[int, int]) -> Optional[Slot]:
         """Retourne le slot a la coordonnee donnee"""
@@ -283,6 +289,8 @@ class PlayerBoard:
         # régions pré-calculées à partir de la map
         self.regions: List[Region] = self._build_regions()
 
+        # self.player = player
+
     def _build_regions(self) -> List[Region]:
         """
         Parcourt la carte, groupe les Slots connectés par allowed_type,
@@ -336,6 +344,7 @@ class PlayerBoard:
         if coord not in self.hex_map.grid:
             return False
         slot = self.hex_map.get_slot(coord)
+        # check if there are neighors nearby that are occupied
         neighbors = self.hex_map.get_neighbors(coord)
         neighors_occupied = False
         for neigh in neighbors:
@@ -343,6 +352,7 @@ class PlayerBoard:
             if neighor_slot.is_occupied:
                 neighors_occupied = True
                 break
+
         return slot.can_place_tile(tile) and (neighors_occupied)
 
     def place_tile(
@@ -662,10 +672,23 @@ class Board:
         print("Black depot:", [t.tile_type.name for t in self.black_depot])
 
 
-PlayerBoard(layout_id=1)
-Piece_Animal = Animal(AnimalType.CATTLE, 3, Color.RED)
-Tile_animal = Tile(TileType.ANIMAL, False)
-Tile_animal.tile = Piece_Animal
-board = PlayerBoard(layout_id=1)
-board.place_tile(Tile_animal, (0, -3), 1)
-print("runned")
+# tests
+if __name__ == "__main__":
+    # Exemple d'utilsation de Playerboard
+    # créer une cîèce animal, vient d'un autre fichier
+    Piece_Animal = Animal(AnimalType.CATTLE, 3)
+    Tile_animal = Tile(TileType.ANIMAL, False)
+    Tile_animal.tile = Piece_Animal
+    board = PlayerBoard(layout_id=1)
+    # créer une pièce building
+    Piece_Building = Building(BuildingType.WAREHOUSE)
+    Tile_building = Tile(TileType.BUILDING, False)
+    Tile_building.tile = Piece_Building
+    # créer une pièce ship
+    Tile_ship = Tile(TileType.SHIP, False)
+
+    # aucune limitation, mais renvoie illegal placement si c'est un mauvais placement
+    # board.place_tile(Tile_animal, (0, -3), 1)
+    board.place_tile(Tile_ship, (1, 0), 1)
+    board.place_tile(Tile_building, (0, -1), 1)
+    print("runned")
