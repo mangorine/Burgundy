@@ -5,7 +5,6 @@ from enum import Enum, auto
 class AnimalType(Enum):
     """
     Types d'animaux possibles sur les tuiles vertes.
-
     """
 
     SHEEP = auto()

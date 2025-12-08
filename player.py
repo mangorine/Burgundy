@@ -1,13 +1,7 @@
 from dataclasses import dataclass, field
 from typing import List, Set
-
-# Import your existing board-related classes
-from board import PlayerBoard, Tile, GoodsTile, TileType
-
-# Import animals
+from board import PlayerBoard, Tile, GoodsTile, TileType, GoodsColor
 from animals import Animal, AnimalType
-
-# Import buildings / knowledge
 from buildings import Building, BuildingType
 
 

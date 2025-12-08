@@ -1,15 +1,7 @@
 from typing import List, Optional, Dict, Any
-
-# Import your board & tile engine
 from board import Board, Tile, TileType, GoodsTile
-
-# Import Player class from your new file
-from player_testing import Player
-
-# Import animals
+from player import Player
 from animals import Animal, AnimalType
-
-# Import buildings / knowledge
 from buildings import Building, BuildingType
 
 from yellow_tiles_list import *

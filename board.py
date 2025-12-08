@@ -3,7 +3,6 @@ from typing import Optional, Dict, List, Tuple, Set
 import random
 from animals import Animal, AnimalType
 from buildings import Building, BuildingType
-from Player_brouillon import *
 
 
 class TileType(Enum):
