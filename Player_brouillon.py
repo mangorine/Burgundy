@@ -43,6 +43,7 @@ class Player:
         self.used_dice = [False, False]
 
     def exchange_dice(self):
+         # test
         pass
         ### à voir...
         # EMILIE DOIT IMPLEMENTER YELLOW_TILE[13,14]
