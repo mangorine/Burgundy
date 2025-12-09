@@ -1,5 +1,9 @@
 
 from random import randint
+from board import *
+from yellow_tiles import *
+from yellow_tiles_list import *
+
 class Player:
     """
     Classe représentant un joueur dans The Castles of Burgundy.
@@ -25,10 +29,16 @@ class Player:
         # Domaine personnel: coordonnées -> tuile ou None
         self.board = board 
         # Marchandises : type -> nombre
-        self.goods = {} 
+        self.goods = {} ####!!!!!!!!!! taille du disctionnaire à majorer par 3
 
         # Effets jaunes actifs sur le joueur
-        self.yellow_effects = []  
+        self.yellow_effects = set()  
+
+        self.hex_storage = []
+
+        self.manche = 1
+        self.has_bought = False # à modifier à chacun des tours dans le nouveau fichier
+        self.phase = "A"
 
 
     
@@ -40,14 +50,36 @@ class Player:
         self.dice = [randint(1,6),randint(1,6)]
         self.used_dice = [False, False]
 
+    def exchange_dice(self,dice_idx : int):
+        if 13 in self.yellow_effects:
+            self.silver += 1
+        if 14 in self.yellow_effects:
+            self.workers += 2
+        self.used_dice[dice_idx] = True
+        self.workers += 2
+
     def adjust_dice(self, dice_idx, delta):
-        """Utilise des ouvriers pour modifier un dé de +1/-1 par ouvrier."""
-        cost = abs(delta)
-        if self.workers < cost:
-            raise ValueError("Pas assez d'ouvriers pour ajuster le dé !")
-        self.workers -= cost
-        new_val = self.dice[dice_idx] + delta
-        self.dice[dice_idx] = new_val
+        if 8 in self.yellow_effects:
+            delta_abs = abs(delta)
+            # cost minimal: each worker can provide 1 or 2 points of adjustment
+            cost = delta_abs // 2 + delta_abs % 2
+            if self.workers < cost:
+                raise ValueError("Pas assez d'ouvriers pour ajuster le dé !")
+            self.workers -= cost
+            old_val = self.dice[dice_idx]
+            # wrap-around in [1..6]
+            new_val = ((old_val - 1 + delta) % 6) + 1
+            self.dice[dice_idx] = new_val
+        else: 
+            cost = abs(delta)
+            if self.workers < cost:
+                raise ValueError("Pas assez d'ouvriers pour ajuster le dé !")
+            self.workers -= cost
+            # valeurs de dé entre 1 et 6
+            old_val = self.dice[dice_idx]
+            # modulo 6 avec valeurs 1 → 6
+            new_val = ((old_val - 1 + delta) % 6) + 1
+            self.dice[dice_idx] = new_val
 
     def gain_goods(self, good_type, amount=1):
         if good_type in self.goods.keys():
@@ -61,15 +93,29 @@ class Player:
             raise ValueError("Aucune marchandise à vendre !")
         self.silver += 1
         self.goods[good_type] =0
+        if 3 in self.yellow_effects:
+            self.silver += 1
+        if 4 in self.yellow_effects:
+            self.workers += 1
 
-    def gain_silver(self, amount):
-        self.silver += amount
-
-    def spend_silver(self, amount):
+    def spend_silver(self, amount, black_tile):
+        if 6 in self.yellow_effects:
+            pass
+        # le joueur a le choix de dépenser ou des workers ou des pièces pour acheter 
+        # des black tiles ou des marchandises directement -> faire interagir ???
+        if self.has_bought == True:
+            raise ValueError("Vous avez déjà acheté durant cette manche !")
         if self.silver < amount:
             raise ValueError("Pas assez de pièces !")
         self.silver -= amount
-
+        ##DOIT AJOUTER LA PIECE à l'espace de stockage 
+        if len(self.hex_storage) < 3:
+            self.hex_storage.append(black_tile)
+        else:
+            ### ON SAIT PAS ENCORE COMMENT GERER CA
+            # -> appeler des fonctions pour discard au cas où etc
+            raise ValueError("L'espace de stockage est trop plein .")
+        
     def can_place(self, position, tile):
         """
         Vérifie simplement que la case existe et est vide.
@@ -77,6 +123,9 @@ class Player:
         """
         #reste à vérifier si voisin à la pos actuelle et 
         #si les chiffres sur la tile et la pos sont compatibles
+        ## EMILIE DOIT FAIRE LE LIEN AVEC LA FONCTION D'APRES 
+        # pour vérifier comment placer les buildings etc 
+        # + regarder avec les effets des yellow tiles
         return position in self.board and self.board[position] is None
 
     def place_tile(self, position, tile):
@@ -84,6 +133,18 @@ class Player:
             raise ValueError("Placement de tuile impossible !")
         self.board[position] = tile
         self.apply_tile_effect(tile)
+        if 9 in self.yellow_effects:
+            pass
+        if 10 in self.yellow_effects:
+            pass
+        if 11 in self.yellow_effects:
+            pass
+        if 12 in self.yellow_effects:
+            pass
+        ### pas sure EMILIE IMPLEMENTE YELLOW_TILE[9,10,11,12]
+        if tile.type == BUILDING:
+            pass
+            
 
     def apply_tile_effect(self, tile):
         """Déclenche les effets immédiats des tuiles.
@@ -91,10 +152,15 @@ class Player:
         t = tile.type
         if t == "SHIP":
             self.advance_turn_order()  # priorité au tour !
+            ## A METTRE EN RELATION AVEC LA METHODE GAIN GOODS
+            # ICI AJOUTER LE FAIT QU'ON PRENNE DES GOODS D'UNE DES PARCELLES 
+            # + AJOUTER LES GOODS SELECTIONNES AU PLAYER BOARD
+            # ICI EMILIE AJOUTE LES EFFETS DE LA YELLOW_TILE[5]
         elif t == "MINE":
             pass  # revenu en fin de manche 
         elif t=="ANIMAL":
             pass #gestion animaux en fin de partie
+        ### EMILIE AJOUTE LES EFFETS DE LA YELLOW_TILE[7] pour le comptage de points
         elif t=="CASTLE":
              pass 
          #je sais pas comment gérer l'action du château pour l'instant #
@@ -104,6 +170,11 @@ class Player:
             if tag:
                 self.yellow_effects.append(tag)
 
+    def get_in_phase(self, phase, player_board): # ICI A CHANGER!!!!!
+        self.workers += 2 # je me souviens plus, à revoir
+        self.silver += player_board.mines.count()
+        if yellow_tiles[2] in player_board: # un truc comme ça...
+            self.workers += player_board.mines.count() # un truc comme ça
 
 
     def __str__(self):

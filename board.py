@@ -1,9 +1,8 @@
 from enum import Enum
 from typing import Optional, Dict, List, Tuple, Set
 import random
-from animals import *
-from buildings import *
-from Player_brouillon import *
+from animals import Animal, AnimalType
+from buildings import Building, BuildingType
 
 
 class TileType(Enum):
