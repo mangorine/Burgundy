@@ -1,9 +1,12 @@
 from enum import Enum
-from typing import Optional, Dict, List, Tuple, Set
+from typing import Optional, Dict, List, Tuple, Set, TYPE_CHECKING
 import random
 from animals import Animal, AnimalType
 from buildings import Building, BuildingType
 
+if TYPE_CHECKING:
+    from player import Player
+    from yellow_tiles_list import YELLOW_TILE_DEFINITIONS
 
 class TileType(Enum):
     CASTLE = "castle"
@@ -332,7 +335,7 @@ class PlayerBoard:
                     return region
         return None
 
-    def can_place_tile_at(self, tile: Tile, coord: Tuple[int, int]) -> Optional[bool]:
+    def can_place_tile_at(self, tile: Tile, coord: Tuple[int, int], player: "Player") -> Optional[bool]:
         """
         Vérifie si la tuile peut être placée sur ce coord :
         - coord existe
@@ -348,14 +351,24 @@ class PlayerBoard:
         neighors_occupied = False
         for neigh in neighbors:
             neighor_slot = self.hex_map.get_slot(neigh)
-            if neighor_slot.is_occupied:
-                neighors_occupied = True
-                break
+            if neighor_slot:
+                neighors_occupied = neighor_slot.is_occupied
+            else:
+                raise ValueError(f"Neighbor coordinate {neigh} is not in the grid")                
+        
+        # YELLOW TILE DEFINITIONS = liste des tuiles jaunes
+        # building = bool pour savoir si déjà building du même type/si yellow effect actif
+        building = False
+        if tile.tile_type.value != "building":
+            building = True
+        else:
+            if YELLOW_TILE_DEFINITIONS[1] in player.yellow_effects:
+                building = True
 
-        return slot.can_place_tile(tile) and (neighors_occupied)
+        return slot.can_place_tile(tile) and (neighors_occupied) and building
 
     def place_tile(
-        self, tile: Tile, coord: Tuple[int, int], current_round: int
+        self, tile: Tile, coord: Tuple[int, int], current_round: int, player: "Player"
     ) -> dict:
         """
         Place une tuile sur le board du joueur, puis met à jour les régions:
@@ -363,7 +376,7 @@ class PlayerBoard:
         - vérifie si la région vient d'être complétée
         - renvoie un résumé utile (score potentiel, région complétée, etc.)
         """
-        if not self.can_place_tile_at(tile, coord):
+        if not self.can_place_tile_at(tile, coord, player):
             raise ValueError(f"Illegal placement at {coord} for tile {tile}")
 
         slot = self.hex_map.get_slot(coord)
@@ -673,8 +686,10 @@ class Board:
 
 # tests
 if __name__ == "__main__":
+    from player import Player
+    from yellow_tiles_list import YELLOW_TILE_DEFINITIONS
     # Exemple d'utilsation de Playerboard
-    # créer une cîèce animal, vient d'un autre fichier
+    # créer une pièce animal, vient d'un autre fichier
     Piece_Animal = Animal(AnimalType.CATTLE, 3)
     Tile_animal = Tile(TileType.ANIMAL, False)
     Tile_animal.tile = Piece_Animal
@@ -683,11 +698,21 @@ if __name__ == "__main__":
     Piece_Building = Building(BuildingType.WAREHOUSE)
     Tile_building = Tile(TileType.BUILDING, False)
     Tile_building.tile = Piece_Building
+    # créer une autre pièce building du même type pour tester le placement illégal + player
+    Piece_Building2 = Building(BuildingType.WAREHOUSE)
+    Tile_building2 = Tile(TileType.BUILDING, False)
+    Tile_building2.tile = Piece_Building2
+    p1 = Player("Clément")
+    p1.add_yellow_effect(YELLOW_TILE_DEFINITIONS[1])
+    
     # créer une pièce ship
     Tile_ship = Tile(TileType.SHIP, False)
 
     # aucune limitation, mais renvoie illegal placement si c'est un mauvais placement
     # board.place_tile(Tile_animal, (0, -3), 1)
-    board.place_tile(Tile_ship, (1, 0), 1)
-    board.place_tile(Tile_building, (0, -1), 1)
+    board.place_tile(Tile_ship, (1, 0), 1, p1)
+    board.place_tile(Tile_building, (0, 1), 1, p1)
+
+    # deuxième building
+    board.place_tile(Tile_building2, (1, 1), 1, p1) # devrait retourner une erreur
     print("runned")

@@ -1,8 +1,11 @@
 from dataclasses import dataclass, field
-from typing import List, Set
+from typing import List, Set, TYPE_CHECKING
 from board import PlayerBoard, Tile, GoodsTile, TileType, GoodsColor
 from animals import Animal, AnimalType
 from buildings import Building, BuildingType
+
+if TYPE_CHECKING:
+    from yellow_tiles import YellowTile
 
 
 @dataclass
@@ -34,8 +37,15 @@ class Player:
     # Marchandises stockées chez le joueur.
     goods_storage: List["GoodsTile"] = field(default_factory=list)
 
-    # Effets des tuiles jaunes (KnowledgeType ou équivalent)
-    yellow_effects: Set[object] = field(default_factory=set)
+    # Effets des tuiles jaunes (YellowTile objects: Income, RuleModification, or Scoring)
+    yellow_effects: Set["YellowTile"] = field(default_factory=set)
+
+    # Track sold goods for end-game scoring
+    sold_goods_types: Set["GoodsColor"] = field(default_factory=set)
+    total_goods_sold: int = 0
+    
+    # Track bonus tiles claimed
+    bonus_tiles: List[str] = field(default_factory=list)
 
     # Pour éventuellement gérer l’ordre du tour / piste de navigation
     turn_order_position: int = 0
@@ -142,13 +152,13 @@ class Player:
     # Tuiles jaunes (knowledge tiles)
     # =============================
 
-    def add_yellow_effect(self, effect: object) -> None:
+    def add_yellow_effect(self, effect: "YellowTile") -> None:
         """
         Ajoute un effet de tuile jaune (KnowledgeType par ex.) au set.
         """
         self.yellow_effects.add(effect)
 
-    def has_yellow_effect(self, effect: object) -> bool:
+    def has_yellow_effect(self, effect: "YellowTile") -> bool:
         """
         Vérifie si le joueur possède un effet jaune donné.
         """
