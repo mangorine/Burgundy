@@ -64,3 +64,6 @@ BIG THING: finish board, player board
 little things, example of things to do in the last part:
 make a method that checks whether you can put a tile in your board (vicinity + building in the same town)
 after that: Emilie adds a method to implement yellow tile n°1
+
+# Yellow tiles
+So specific that I hard coded the rule modifications where they applied instead of doing someting generic

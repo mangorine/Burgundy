@@ -135,8 +135,7 @@ class Player:
     def sell_goods_of_color(self, color: "GoodsColor") -> int:
         """
         Vend toutes les marchandises d'une couleur donnée.
-
-        Renvoie le nombre de marchandises vendues (pour calculer PV, argent, etc.).
+        Ajoute les VP et les silverlings avec les effets des tuiles jaunes si tuile jaune
         """
         remaining: List[GoodsTile] = []
         sold = 0
@@ -146,6 +145,18 @@ class Player:
             else:
                 remaining.append(g)
         self.goods_storage = remaining
+        
+        if sold > 0:
+            self.sold_goods_types.add(color)
+            self.total_goods_sold += sold
+            
+            # Si tuile jaune 3 : 2 silver au lieu de 1
+            silverlings_per_good = self.get_silverlings_per_good_sold()
+            self.gain_silverlings(silverlings_per_good * sold)
+            
+            # Si tuile 4 : gagne 1 ouvrier en vendant des marchandises
+            self.apply_goods_sold_effects(sold)
+        
         return sold
 
     # =============================
@@ -158,8 +169,163 @@ class Player:
         """
         self.yellow_effects.add(effect)
 
-    def has_yellow_effect(self, effect: "YellowTile") -> bool:
+    
+    def has_yellow_tile_by_id(self, tile_id: int) -> bool:
         """
-        Vérifie si le joueur possède un effet jaune donné.
+        Check si le joueur possède une tuile jaune avec id
         """
-        return effect in self.yellow_effects
+        for effect in self.yellow_effects:
+            if effect.tile_id == tile_id:
+                return True
+        return False
+    
+    # =============================
+    # Yellow Tile Rule Modifications
+    # =============================
+    
+    def get_die_adjustment_per_worker(self) -> int:
+        """
+        Si on a la tuile jaune 8 (Master Laborer), on peut ajuster le dé de +/-2 par ouvrier.
+        Sinon, c'est +/-1 par ouvrier.
+        A appeler lorsque l'on veut changer la valeur d'un dé avec les ouvriers.
+        """
+        if self.has_yellow_tile_by_id(8):
+            return 2
+        return 1
+    
+    def get_free_placement_die_adjustment(self, tile_type: TileType) -> bool:
+        """
+        Tuiles 9 - 11
+        Ajustement de dé gratuit pour placement de tuiles hex spécifiques.
+        
+        Dispatch selon le type de tuile
+        A appeler lors du placement des tuiles pour savoir si on peut ajuster le dé.
+        """
+        # Tile #9: Buildings
+        if tile_type == TileType.BUILDING and self.has_yellow_tile_by_id(9):
+            return True
+        
+        # Tile #10: Ships or Animals
+        if (tile_type == TileType.SHIP or tile_type == TileType.ANIMAL) and self.has_yellow_tile_by_id(10):
+            return True
+        
+        # Tile #11: Castles, Mines, or Knowledge
+        if (tile_type == TileType.CASTLE or tile_type == TileType.MINE or 
+            tile_type == TileType.KNOWLEDGE) and self.has_yellow_tile_by_id(11):
+            return True
+        
+        return False
+    
+    def can_take_from_depot_with_adjustment(self) -> bool:
+        """
+        Tuile 12 
+        Permet de prendre des marchandises du dépôt avec un ajustement de dé.
+        
+        A appeler lors de la prise de marchandises du dépôt.
+        """
+        return self.has_yellow_tile_by_id(12)
+    
+    def can_access_black_depot(self) -> bool:
+        """
+        True si on a accès au black market
+        """
+        return self.has_yellow_tile_by_id(6)
+    
+    def get_animal_placement_vp_bonus(self) -> int:
+        """
+        Donne un vp bonus par animal placé si on a la tuile jaune 7.
+        """
+        if self.has_yellow_tile_by_id(7):
+            return 1
+        return 0
+    
+    def get_silverlings_per_good_sold(self) -> int:
+        """
+        Tuile 3 (Master Merchant): 2 silverlings par marchandise vendue au lieu de 1.
+        
+        Donne 2 silverlings par marchandise vendue si on a la tuile jaune 3.
+        """
+        if self.has_yellow_tile_by_id(3):
+            return 2
+        return 1
+    
+    def get_ship_goods_bonus(self) -> int:
+        """
+        Tuile 5 (Advanced Shipping): Prendre des marchandises de deux espaces voisins au lieu d'un.
+        """
+        if self.has_yellow_tile_by_id(5):
+            return 2
+        return 1
+    
+    def allows_duplicate_buildings_in_city(self) -> bool:
+        """
+        Peut poser plusieurs bâtiments du même type dans une même ville si on a la tuile jaune 1.
+        """
+        return self.has_yellow_tile_by_id(1)
+    
+    def get_workers_from_take_action(self) -> int:
+        """
+        Prends 4 workers au lieu de 2 lorsque l'on fait "Take worker chips"
+        """
+        if self.has_yellow_tile_by_id(14):
+            return 4
+        return 2
+    
+    def get_silverling_bonus_on_take_workers(self) -> int:
+        """
+        Donne 1 silver quand on prend un ouvrier
+        """
+        if self.has_yellow_tile_by_id(13):
+            return 1
+        return 0
+    
+    # =============================
+    # Income Tiles (Phase-based)
+    # =============================
+    
+    def apply_end_of_phase_income(self) -> None:
+        """
+        A la fin de la phase, on gagne 1 worker par mine en plus des silvers
+        """
+        if self.has_yellow_tile_by_id(2):
+            num_mines = self._count_mines_on_board()
+            if num_mines > 0:
+                self.gain_workers(num_mines)
+    
+    def _count_mines_on_board(self) -> int:
+        """Count the number of mine tiles on the player's board."""
+        count = 0
+        for region in self.board.regions:
+            for slot in region.slots:
+                if slot.tile and slot.tile.tile_type == TileType.MINE:
+                    count += 1
+        return count
+    
+    def apply_goods_sold_effects(self, num_goods_sold: int) -> None:
+        """
+        Ajoute 1 worker dès qu'on vend des marchandises si on a la tuile jaune 4.
+        """
+        if self.has_yellow_tile_by_id(4):
+            self.gain_workers(1)
+    
+    # =============================
+    # End-Game Scoring
+    # =============================
+    
+    def calculate_yellow_tiles_score(self) -> int:
+        """
+        Calculate total victory points from all scoring yellow tiles.
+        Call this at the end of the game.
+        """
+        from yellow_tiles import Scoring
+        total_vp = 0
+        for tile in self.yellow_effects:
+            if isinstance(tile, Scoring):
+                total_vp += tile.calculate_vp_end_of_game(self)
+        return total_vp
+    
+    def add_bonus_tile(self, bonus_name: str) -> None:
+        """
+        Track a bonus tile claimed by the player (for end-game scoring).
+        """
+        self.bonus_tiles.append(bonus_name)

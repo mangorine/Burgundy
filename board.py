@@ -346,26 +346,37 @@ class PlayerBoard:
         if coord not in self.hex_map.grid:
             return False
         slot = self.hex_map.get_slot(coord)
-        # check if there are neighors nearby that are occupied
+
+        # check if there are neighbors nearby that are occupied
         neighbors = self.hex_map.get_neighbors(coord)
-        neighors_occupied = False
+        neighbors_occupied = False
         for neigh in neighbors:
-            neighor_slot = self.hex_map.get_slot(neigh)
-            if neighor_slot:
-                neighors_occupied = neighor_slot.is_occupied
+            neighbor_slot = self.hex_map.get_slot(neigh)
+            if neighbor_slot:
+                if neighbor_slot.is_occupied:
+                    neighbors_occupied = True
+                    break
             else:
                 raise ValueError(f"Neighbor coordinate {neigh} is not in the grid")                
         
         # YELLOW TILE DEFINITIONS = liste des tuiles jaunes
-        # building = bool pour savoir si déjà building du même type/si yellow effect actif
-        building = False
-        if tile.tile_type.value != "building":
-            building = True
-        else:
-            if YELLOW_TILE_DEFINITIONS[1] in player.yellow_effects:
-                building = True
-
-        return slot.can_place_tile(tile) and (neighors_occupied) and building
+        # can_place_building = bool pour savoir si déjà building du même type/si yellow effect actif
+        can_place_building = True
+        
+        if tile.tile_type == TileType.BUILDING:
+            region = self.get_region_by_coord(coord)
+            for slot_ in region.slots:
+                if slot_.tile and hasattr(slot_.tile, 'tile'):
+                    building_piece = slot_.tile.tile
+                    if hasattr(building_piece, 'building_type'):
+                        if building_piece.building_type == tile.tile.building_type:
+                            can_place_building = False
+                            break
+            
+            if not can_place_building and player.allows_duplicate_buildings_in_city():
+                can_place_building = True
+        
+        return slot.can_place_tile(tile) and neighbors_occupied and can_place_building
 
     def place_tile(
         self, tile: Tile, coord: Tuple[int, int], current_round: int, player: "Player"
@@ -714,5 +725,5 @@ if __name__ == "__main__":
     board.place_tile(Tile_building, (0, 1), 1, p1)
 
     # deuxième building
-    board.place_tile(Tile_building2, (1, 1), 1, p1) # devrait retourner une erreur
+    board.place_tile(Tile_building2, (1, 1), 1, p1) # devrait retourner une erreur si la tuile jaune n'est pas là
     print("runned")
