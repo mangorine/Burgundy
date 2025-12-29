@@ -223,6 +223,7 @@ class Game:
 
             goods = self.board.take_all_goods_from_depot(depot_id)
             player.add_goods(goods)
+            player.apply_goods_sold_effects()
             # Bonus : 1 PV par marchandise prise
             player.gain_victory_points(len(goods))
             return
@@ -351,13 +352,11 @@ class Game:
         """
         # 1) Mines → argent
         for player in self.players:
-            nb_mines = 0
-            for region in player.board.regions:
-                for slot in region.slots:
-                    if slot.is_occupied and slot.tile.tile_type == TileType.MINE:
-                        nb_mines += 1
+            nb_mines = player._count_mines_on_board()
             # Règle simple : 1 mine = 1 écu par manche de phase
             player.gain_silverlings(nb_mines)
+            # Tuile 2
+            player.apply_end_of_phase_income()
 
         # 2) Passer à la phase suivante sur le plateau central
         if self.board.is_phase_over():

@@ -182,7 +182,51 @@ class Player:
     # =============================
     # Yellow Tile Rule Modifications
     # =============================
+
+    # Tuile 1
+    def allows_duplicate_buildings_in_city(self) -> bool:
+        """
+        Peut poser plusieurs bâtiments du même type dans une même ville si on a la tuile jaune 1.
+        """
+        return self.has_yellow_tile_by_id(1)
     
+    # Tuile 3
+    def get_silverlings_per_good_sold(self) -> int:
+        """
+        Tuile 3 (Master Merchant): 2 silverlings par marchandise vendue au lieu de 1.
+        
+        Donne 2 silverlings par marchandise vendue si on a la tuile jaune 3.
+        """
+        if self.has_yellow_tile_by_id(3):
+            return 2
+        return 1
+    
+    # Tuile 5
+    def get_ship_goods_bonus(self) -> int:
+        """
+        Tuile 5 (Advanced Shipping): Prendre des marchandises de deux espaces voisins au lieu d'un.
+        """
+        if self.has_yellow_tile_by_id(5):
+            return 2
+        return 1
+    
+    # Tuile 6
+    def can_access_black_depot(self) -> bool:
+        """
+        True si on a accès au black market
+        """
+        return self.has_yellow_tile_by_id(6)
+    
+    # Tuile 7
+    def get_animal_placement_vp_bonus(self) -> int:
+        """
+        Donne un vp bonus par animal placé si on a la tuile jaune 7.
+        """
+        if self.has_yellow_tile_by_id(7):
+            return 1
+        return 0
+    
+    # Tuile 8
     def get_die_adjustment_per_worker(self) -> int:
         """
         Si on a la tuile jaune 8 (Master Laborer), on peut ajuster le dé de +/-2 par ouvrier.
@@ -193,6 +237,7 @@ class Player:
             return 2
         return 1
     
+    # Tuile 9 - 11
     def get_free_placement_die_adjustment(self, tile_type: TileType) -> bool:
         """
         Tuiles 9 - 11
@@ -216,6 +261,7 @@ class Player:
         
         return False
     
+    # Tuile 12
     def can_take_from_depot_with_adjustment(self) -> bool:
         """
         Tuile 12 
@@ -225,52 +271,7 @@ class Player:
         """
         return self.has_yellow_tile_by_id(12)
     
-    def can_access_black_depot(self) -> bool:
-        """
-        True si on a accès au black market
-        """
-        return self.has_yellow_tile_by_id(6)
-    
-    def get_animal_placement_vp_bonus(self) -> int:
-        """
-        Donne un vp bonus par animal placé si on a la tuile jaune 7.
-        """
-        if self.has_yellow_tile_by_id(7):
-            return 1
-        return 0
-    
-    def get_silverlings_per_good_sold(self) -> int:
-        """
-        Tuile 3 (Master Merchant): 2 silverlings par marchandise vendue au lieu de 1.
-        
-        Donne 2 silverlings par marchandise vendue si on a la tuile jaune 3.
-        """
-        if self.has_yellow_tile_by_id(3):
-            return 2
-        return 1
-    
-    def get_ship_goods_bonus(self) -> int:
-        """
-        Tuile 5 (Advanced Shipping): Prendre des marchandises de deux espaces voisins au lieu d'un.
-        """
-        if self.has_yellow_tile_by_id(5):
-            return 2
-        return 1
-    
-    def allows_duplicate_buildings_in_city(self) -> bool:
-        """
-        Peut poser plusieurs bâtiments du même type dans une même ville si on a la tuile jaune 1.
-        """
-        return self.has_yellow_tile_by_id(1)
-    
-    def get_workers_from_take_action(self) -> int:
-        """
-        Prends 4 workers au lieu de 2 lorsque l'on fait "Take worker chips"
-        """
-        if self.has_yellow_tile_by_id(14):
-            return 4
-        return 2
-    
+    # Tuile 13
     def get_silverling_bonus_on_take_workers(self) -> int:
         """
         Donne 1 silver quand on prend un ouvrier
@@ -279,10 +280,20 @@ class Player:
             return 1
         return 0
     
+    # Tuile 14
+    def get_workers_from_take_action(self) -> int:
+        """
+        Prends 4 workers au lieu de 2 lorsque l'on fait "Take worker chips"
+        """
+        if self.has_yellow_tile_by_id(14):
+            return 4
+        return 2
+    
     # =============================
     # Income Tiles (Phase-based)
     # =============================
     
+    # Tuile 2
     def apply_end_of_phase_income(self) -> None:
         """
         A la fin de la phase, on gagne 1 worker par mine en plus des silvers
@@ -301,7 +312,8 @@ class Player:
                     count += 1
         return count
     
-    def apply_goods_sold_effects(self, num_goods_sold: int) -> None:
+    # Tuile 4
+    def apply_goods_sold_effects(self) -> None:
         """
         Ajoute 1 worker dès qu'on vend des marchandises si on a la tuile jaune 4.
         """
