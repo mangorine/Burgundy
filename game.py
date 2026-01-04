@@ -118,7 +118,7 @@ class Game:
         tile = player.remove_hex_from_storage(storage_index)
 
         # 2) On la pose sur le PlayerBoard
-        placement_result = player.board.place_tile(tile, coord, current_round)
+        placement_result = player.board.place_tile(tile, coord, current_round,player)
 
         # 3) On applique les effets selon le type de tuile
         self._apply_tile_effect(player, tile, coord, placement_result, extra_context)
