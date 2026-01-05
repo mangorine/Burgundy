@@ -1,7 +1,7 @@
 # ui/render_hex.py
 import math
 import pygame
-from ui.colors import TILE_COLORS, EMPTY_COLOR, BORDER_COLOR
+from colors import TILE_COLORS, EMPTY_COLOR, BORDER_COLOR
 
 
 HEX_SIZE = 40  # rayon d'un hexagone
