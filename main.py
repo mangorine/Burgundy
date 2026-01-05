@@ -3,8 +3,8 @@ import pygame
 
 from game import Game
 from board import TileType, Tile, PlayerBoard
-from ui.render_hex import draw_player_board, draw_storage, pixel_to_axial
-from ui.colors import BACKGROUND_COLOR
+from render_hex import draw_player_board, draw_storage, pixel_to_axial
+from colors import BACKGROUND_COLOR
 
 # ===============================
 # INIT PYGAME
