@@ -25,9 +25,10 @@ class Tile:
 
 
 class Slot:
-    def __init__(self, coord: Tuple[int, int], allowed_type: TileType):
+    def __init__(self, coord: Tuple[int, int], allowed_type: TileType, dice_value: int = 1):
         self.coord = coord
         self.allowed_type = allowed_type
+        self.dice_value = dice_value  # Die number required to place on this slot (1-6)
         self.is_occupied = False
         self.tile = None
 
