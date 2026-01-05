@@ -50,6 +50,9 @@ class Player:
     # Pour éventuellement gérer l’ordre du tour / piste de navigation
     turn_order_position: int = 0
 
+    # Dés pour les actions
+    dice: List[int] = field(default_factory=list)
+    
     def __post_init__(self) -> None:
         """
         Initialise le PlayerBoard après la création du Player.
