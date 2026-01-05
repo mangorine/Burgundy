@@ -8,4 +8,3 @@ class Action(Enum):
     PLACE_TILE = "place a tile"
     CHANGE_DIE_VALUE = "change a die value"
     DISCARD_TILE = "discard a tile"
-    
