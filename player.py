@@ -158,7 +158,7 @@ class Player:
             self.gain_silverlings(silverlings_per_good * sold)
             
             # Si tuile 4 : gagne 1 ouvrier en vendant des marchandises
-            self.apply_goods_sold_effects(sold)
+            self.apply_goods_sold_effects()
         
         return sold
 
@@ -413,7 +413,8 @@ class Player:
 
     def can_use_die_for_depot(self, depot_id: int) -> Tuple[bool, int, int]:
         """
-        Check if the player can take a tile from a depot with the given ID.
+        On check si le joueur peut prendre la tuile du dépôt avec l'ID donné.
+        Les 3 valeurs du tuple vont nous servir dans les autres fonctions donc on les garde.
         
         Returns: (can_take, die_value_to_use, workers_needed)
         - can_take: True if the action is possible
