@@ -726,5 +726,5 @@ if __name__ == "__main__":
     board.place_tile(Tile_building, (0, 1), 1, p1)
 
     # deuxième building
-    board.place_tile(Tile_building2, (1, 1), 1, p1) # devrait retourner une erreur si la tuile jaune n'est pas là
+    board.place_tile(Tile_building2, (1, 1), 1, p1)# devrait retourner une erreur si la tuile jaune n'est pas là
     print("runned")

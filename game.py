@@ -3,6 +3,7 @@ from board import Board, Tile, TileType, GoodsTile
 from player import Player
 from animals import Animal, AnimalType
 from buildings import Building, BuildingType
+import random
 
 from yellow_tiles_list import *
 
@@ -492,3 +493,5 @@ class Game:
         """
         size = placement_result.get("region_size", 0)
         player.gain_victory_points(size)
+
+if __name__ == "__main__":
