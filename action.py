@@ -255,26 +255,27 @@ class MoveGenerator:
         return moves
     
     def get_take_workers_moves(self) -> List[Action]:
-        """
-        En gros échanger un dé contre des workers.
-    
-        Returns:
-            List of valid take workers actions
-        """
         moves: List[Action] = []
-        
         if len(self.player.dice) == 0:
             return moves
         
         workers_gained = self.player.get_workers_from_take_action()
         silverling_bonus = self.player.get_silverling_bonus_on_take_workers()
         
+        # On utilise un set pour ne pas proposer 2 fois la même action si on a deux dés '4'
+        processed_die_values = set()
+
         for die_value in self.player.dice:
+            if die_value in processed_die_values:
+                continue
+                
+            processed_die_values.add(die_value)
             bonus_text = f" + {silverling_bonus} silverling" if silverling_bonus > 0 else ""
+            
             move = Action(
                 type=ActionType.TAKE_WORKERS,
                 params={
-                    "die_value": die_value,
+                    "die_value": die_value, # Le joueur peut choisir quel dé sacrifier
                     "workers_gained": workers_gained,
                     "silverling_bonus": silverling_bonus
                 },
@@ -282,7 +283,6 @@ class MoveGenerator:
                 description=f"Take {workers_gained} workers{bonus_text} (die {die_value})"
             )
             moves.append(move)
-            break  # Only need one entry (any die works)
         
         return moves
     
