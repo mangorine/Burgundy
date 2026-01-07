@@ -494,6 +494,45 @@ class Game:
         size = placement_result.get("region_size", 0)
         player.gain_victory_points(size)
 
+    def start_new_round(self) -> dict:
+        """
+        Démarre une nouvelle manche : lance le dé blanc et place la marchandise.
+        Retourne un dict avec les infos de la manche.
+        """
+        white_die = self.board._rng.randint(1, 6)
+        goods_placed = self.board.advance_round(white_die)
+        
+        return {
+            "white_die": white_die,
+            "goods_placed": goods_placed,
+            "current_round": self.board.round_in_phase,
+            "current_phase": self.board.current_phase,
+            "is_phase_over": self.board.is_phase_over(),
+        }
+
+    def start_new_phase(self) -> dict:
+        """
+        Démarre une nouvelle phase : remet les tuiles hex et bonus.
+        Retourne un dict avec les infos de la phase.
+        """
+        self.board.start_new_phase()
+        
+        return {
+            "current_phase": self.board.current_phase,
+            "is_game_over": self.is_game_over(),
+        }
+
+    def is_game_over(self) -> bool:
+        """Vérifie si la partie est terminée (5 phases complétées)."""
+        return self.board.current_phase > 5
+
+    def end_current_round(self) -> None:
+        """
+        Fin de manche : tous les joueurs ont joué.
+        Réinitialise l'index du joueur courant pour la prochaine manche.
+        """
+        self.current_player_index = 0
+
 
 class TurnManager:
     """

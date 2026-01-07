@@ -212,83 +212,114 @@ class GameController:
             pass
     """
     
-    def __init__(self, game: Game) -> None:
-        """
-        Initialize the controller with a game instance.
-        
-        Args:
-            game: The Game instance to control
-        """
+    def __init__(self, game: Game, seed: Optional[int] = None) -> None:
         self._game = game
-        self._rules_engine = RulesEngine(game)
-        self._turn_manager = TurnManager(game)
-        
-        # Callbacks for state change notifications (observer pattern)
-        self._state_change_callbacks: List[Callable[[GameStateView], None]] = []
-        
-        # Track turn state
+        self._turn_manager = TurnManager(seed)
         self._turn_started = False
-    
-    # =============================
-    # Turn Management
-    # =============================
-    
-    def start_turn(self) -> ActionResponse:
+        self._round_started = False  # Nouveau flag
+        self._players_played_this_round = 0  # Compteur de joueurs
+
+    def start_round(self) -> ActionResponse:
         """
-        Start the current player's turn by rolling dice.
+        Démarre une nouvelle manche : lance le dé blanc et place les marchandises.
+        Doit être appelé au début de chaque manche.
+        """
+        if self._game.is_game_over():
+            return ActionResponse(
+                result=ActionResult.GAME_OVER,
+                message="La partie est terminée."
+            )
         
-        Returns:
-            ActionResponse indicating success or failure
-        """
+        # Vérifier si on doit changer de phase
+        if self._game.board.is_phase_over():
+            phase_info = self._game.start_new_phase()
+            if self._game.is_game_over():
+                return ActionResponse(
+                    result=ActionResult.GAME_OVER,
+                    message=f"Partie terminée après la phase {phase_info['current_phase'] - 1}!"
+                )
+        
+        round_info = self._game.start_new_round()
+        self._round_started = True
+        self._players_played_this_round = 0
+        
+        return ActionResponse(
+            result=ActionResult.SUCCESS,
+            message=f"Manche {round_info['current_round']}/5 - Phase {round_info['current_phase']}. "
+                    f"Dé blanc: {round_info['white_die']}. "
+                    f"Marchandise placée: {round_info['goods_placed']}",
+            data=round_info
+        )
+
+    def start_turn(self) -> ActionResponse:
+        """Démarre le tour du joueur courant."""
+        if not self._round_started:
+            return ActionResponse(
+                result=ActionResult.INVALID_ACTION,
+                message="La manche n'a pas encore commencé. Appelez start_round() d'abord."
+            )
+        
         if self._turn_started:
             return ActionResponse(
                 result=ActionResult.INVALID_ACTION,
-                message="Turn already started. Complete current turn first."
+                message="Le tour a déjà commencé."
             )
         
         self._turn_manager.start_turn()
         self._turn_started = True
         
         player = self._game.current_player
-        self._notify_state_change()
-        
         return ActionResponse(
             result=ActionResult.SUCCESS,
-            message=f"{player.name}'s turn started. Dice: {player.dice}",
-            game_state_changed=True,
-            extra_data={"dice": player.dice.copy()}
+            message=f"Tour de {player.name} commencé.",
+            data={"player": player.name, "dice": self._turn_manager.get_available_dice()}
         )
-    
+
     def end_turn(self) -> ActionResponse:
-        """
-        End the current player's turn and advance to next player.
-        
-        Returns:
-            ActionResponse indicating success or failure
-        """
+        """Termine le tour du joueur courant et passe au suivant."""
         if not self._turn_started:
             return ActionResponse(
                 result=ActionResult.INVALID_ACTION,
-                message="No turn in progress."
+                message="Aucun tour en cours."
             )
         
-        if not self._turn_manager.is_turn_complete():
-            return ActionResponse(
-                result=ActionResult.INVALID_ACTION,
-                message=f"Turn not complete. {self._turn_manager.actions_remaining} actions remaining."
-            )
-        
-        previous_player = self._game.current_player.name
         self._turn_manager.end_turn()
         self._turn_started = False
+        self._players_played_this_round += 1
         
-        self._notify_state_change()
+        # Vérifier si tous les joueurs ont joué cette manche
+        if self._players_played_this_round >= len(self._game.players):
+            self._round_started = False
+            self._game.end_current_round()
+            
+            return ActionResponse(
+                result=ActionResult.SUCCESS,
+                message="Manche terminée. Appelez start_round() pour la prochaine manche.",
+                data={"round_over": True}
+            )
+        
+        # Passer au joueur suivant
+        self._game.next_player()
         
         return ActionResponse(
             result=ActionResult.SUCCESS,
-            message=f"{previous_player}'s turn ended. Next: {self._game.current_player.name}",
-            game_state_changed=True
+            message=f"Tour terminé. Au tour de {self._game.current_player.name}.",
+            data={"round_over": False, "next_player": self._game.current_player.name}
         )
+
+    def get_game_state(self) -> dict:
+        """Retourne l'état complet du jeu."""
+        return {
+            "current_phase": self._game.board.current_phase,
+            "current_round": self._game.board.round_in_phase,
+            "current_player": self._game.current_player.name,
+            "round_started": self._round_started,
+            "turn_started": self._turn_started,
+            "is_game_over": self._game.is_game_over(),
+            "goods_depots": {
+                i: len(depot) for i, depot in enumerate(self._game.board.goods_depots)
+            },
+        }
     
     def force_end_turn(self) -> ActionResponse:
         """
