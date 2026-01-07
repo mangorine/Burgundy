@@ -489,16 +489,26 @@ class GameController:
                 player.spend_workers(workers_cost)
             
             # Place the tile
+            # on utilise un dico vide qui sera remplie par _apply_castle_effect
+            ctx = extra_context.copy()
             result = self._game.action_place_tile_from_storage(
-                storage_index, coord, self._game.global_round, extra_context
+                storage_index, coord, self._game.global_round, ctx
             )
             
             # Use the die
             if die_value in player.dice:
                 player.use_die(die_value)
             
+            # un chateau donne un extra action
+            if ctx.get("castle_bonus_action_available"):
+                # On recrédite une action (ou on n'en consomme pas)
+                # Ici, comme on va faire use_action() à la fin, on en ajoute une pour compenser
+                self._turn_manager.actions_remaining += 1
+                message = f"Placed Castle at {coord} (Bonus Action!)"
+            else:
+                message = f"Placed tile at {coord}"
+
             extra_data["placement_result"] = result
-            message = f"Placed tile at {coord}"
         
         elif action.type == ActionType.SELL_GOODS:
             color_name = action.params["color"]
@@ -757,7 +767,7 @@ if __name__ == "__main__":
     controller = GameController(game)
     
     print(f"Game created with players: {[p.name for p in game.players]}")
-    print(f"Controller initialized")
+    print("Controller initialized")
     
     # Register a state change observer (simulating UI update handler)
     def on_state_change(state: GameStateView):
@@ -778,7 +788,7 @@ if __name__ == "__main__":
     
     # UI queries game state
     state = controller.get_game_state()
-    print(f"\nGame state view:")
+    print("\nGame state view:")
     print(f"  Current player: {state.current_player_name}")
     print(f"  Dice: {state.dice}")
     print(f"  Actions remaining: {state.actions_remaining}")
@@ -818,7 +828,7 @@ if __name__ == "__main__":
         # UI submits action to controller
         response = controller.submit_action(chosen_action)
         
-        print(f"\nController response:")
+        print("\nController response:")
         print(f"  Result: {response.result.name}")
         print(f"  Message: {response.message}")
         print(f"  State changed: {response.game_state_changed}")
@@ -831,7 +841,7 @@ if __name__ == "__main__":
     print("\n--- EXAMPLE 4: Updated State ---")
     
     state = controller.get_game_state()
-    print(f"After action:")
+    print("After action:")
     print(f"  Dice remaining: {state.dice}")
     print(f"  Actions remaining: {state.actions_remaining}")
     print(f"  Hex storage: {state.hex_storage_count} tiles")
@@ -871,7 +881,7 @@ if __name__ == "__main__":
     )
     
     response = controller.submit_action(fake_action)
-    print(f"Illegal action response:")
+    print("Illegal action response:")
     print(f"  Result: {response.result.name}")
     print(f"  Message: {response.message}")
     
