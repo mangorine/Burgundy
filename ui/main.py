@@ -12,6 +12,12 @@ from ui.colors import BACKGROUND_COLOR
 pygame.init()
 pygame.font.init()
 FONT_TILE = pygame.font.SysFont(None, 28)
+VIEW_CENTRAL = "central"
+VIEW_PLAYER = "player"
+
+current_view = VIEW_CENTRAL
+current_player_index = 0
+current_player_view=None
 
 WIDTH, HEIGHT = 1200, 800
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -42,6 +48,26 @@ pending_choice = None  # dict ou None
 
 BOARD_ORIGIN = (WIDTH // 2, HEIGHT // 2)
 
+PLAYER_BUTTONS = []
+BUTTON_WIDTH = 140
+BUTTON_HEIGHT = 40
+BUTTON_GAP = 10
+
+def build_player_buttons(num_players):
+    buttons = []
+    start_x = WIDTH // 2 - (num_players * (BUTTON_WIDTH + BUTTON_GAP)) // 2
+    y = 20
+
+    for i in range(num_players):
+        rect = pygame.Rect(
+            start_x + i * (BUTTON_WIDTH + BUTTON_GAP),
+            y,
+            BUTTON_WIDTH,
+            BUTTON_HEIGHT,
+        )
+        buttons.append(rect)
+
+    return buttons
 
 def ask_number_choice(choice_type, min_val, max_val, callback):
     global pending_choice
@@ -80,9 +106,15 @@ while running:
                     print(f"Layout sélectionné : {selected_layout_id}")
 
                 if event.key == pygame.K_RETURN:
-                    game = Game(["Player 1"])
-                    player = game.current_player
-                    player.board = PlayerBoard(layout_id=selected_layout_id)
+                    if event.key == pygame.K_RETURN:
+                        game = Game(["Player 1", "Player 2","Player3","Player4"]) 
+                        player = game.current_player
+                        player.board = PlayerBoard(layout_id=selected_layout_id)
+
+                        PLAYER_BUTTONS = build_player_buttons(len(game.players))
+
+                        current_view = VIEW_CENTRAL
+                        mode = MODE_GAME
 
                     # DEBUG : tuile test
                     player.add_hex_to_storage(Tile(TileType.BUILDING))
@@ -125,61 +157,77 @@ while running:
             # ----- SOURIS -----
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 mx, my = pygame.mouse.get_pos()
-                coord = pixel_to_axial(mx, my, BOARD_ORIGIN)
+                if current_view == VIEW_CENTRAL:
+                    for i, rect in enumerate(PLAYER_BUTTONS):
+                         if rect.collidepoint(mx, my):
+                                current_player_index = i
+                                current_view = VIEW_PLAYER
+                                selected_tile = None
+                                selected_hex=None
+                                selected_storage_index = None
+                                legal_coords.clear()
+                                print(f"Vue joueur {i + 1}")
+                                break
+                
+                elif current_view == VIEW_PLAYER:           
+                    player = game.players[current_player_index]
+                    coord = pixel_to_axial(mx, my, BOARD_ORIGIN)
 
-                if coord in player.board.hex_map.grid:
-                    selected_hex = coord
+                    if coord in player.board.hex_map.grid:
+                        selected_hex = coord
 
-                if (
-                    selected_tile is not None
-                    and selected_storage_index is not None
-                    and coord in legal_coords
-                ):
-                    result = game.action_place_tile_from_storage(
-                        selected_storage_index,
-                        coord,
-                        game.global_round,
-                        extra_context={},
-                    )
+                    if (
+                        selected_tile is not None
+                        and selected_storage_index is not None
+                        and coord in legal_coords
+                    ):
+                        result = game.action_place_tile_from_storage(
+                            selected_storage_index,
+                            coord,
+                            game.global_round,
+                            extra_context={},
+                        )
 
-                    selected_tile = None
-                    selected_storage_index = None
-                    selected_hex = None
-                    legal_coords.clear()
+                        selected_tile = None
+                        selected_storage_index = None
+                        selected_hex = None
+                        legal_coords.clear()
 
-                    print("Placement effectué :", result)
+                        print("Placement effectué :", result)
 
-                # stockage
-                storage_origin = (WIDTH // 2 - 90, HEIGHT - 120)
-                SLOT_SIZE = 50
-                GAP = 20
+                    # stockage
+                    storage_origin = (WIDTH // 2 - 90, HEIGHT - 120)
+                    SLOT_SIZE = 50
+                    GAP = 20
 
-                for i in range(3):
-                    rect = pygame.Rect(
-                        storage_origin[0] + i * (SLOT_SIZE + GAP),
-                        storage_origin[1],
-                        SLOT_SIZE,
-                        SLOT_SIZE,
-                    )
+                    for i in range(3):
+                        rect = pygame.Rect(
+                            storage_origin[0] + i * (SLOT_SIZE + GAP),
+                            storage_origin[1],
+                            SLOT_SIZE,
+                            SLOT_SIZE,
+                        )
 
-                    if rect.collidepoint(mx, my):
-                        if i < len(player.hex_storage):
-                            selected_storage_index = i
-                            selected_tile = player.hex_storage[i]
-                        else:
-                            selected_storage_index = None
-                            selected_tile = None
-
+                        if rect.collidepoint(mx, my):
+                            if i < len(player.hex_storage):
+                                selected_storage_index = i
+                                selected_tile = player.hex_storage[i]
+                            else:
+                                selected_storage_index = None
+                                selected_tile = None
+                            break
     # ===============================
     # 2️ LOGIQUE GUI
     # ===============================
-    if mode == MODE_GAME:
-        legal_coords.clear()
-        if selected_tile:
-            for coord in player.board.hex_map.grid:
-                if player.board.can_place_tile_at(selected_tile, coord, player):
-                    legal_coords.add(coord)
-
+    
+    if mode == MODE_GAME and current_view==VIEW_PLAYER:
+            legal_coords.clear()
+            if selected_tile:
+                player = game.players[current_player_index]
+                for coord in player.board.hex_map.grid:
+                    if player.board.can_place_tile_at(selected_tile, coord, player):
+                        legal_coords.add(coord)
+       
     # ===============================
     # 3️ RENDU
     # ===============================
