@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Set, TYPE_CHECKING
+from typing import List, Set, Tuple, TYPE_CHECKING
 from board import PlayerBoard, Tile, GoodsTile, TileType, GoodsColor
 from animals import Animal, AnimalType
 from buildings import Building, BuildingType
@@ -50,6 +50,9 @@ class Player:
     # Pour éventuellement gérer l’ordre du tour / piste de navigation
     turn_order_position: int = 0
 
+    # Dés pour les actions
+    dice: List[int] = field(default_factory=list)
+    
     def __post_init__(self) -> None:
         """
         Initialise le PlayerBoard après la création du Player.
@@ -155,7 +158,7 @@ class Player:
             self.gain_silverlings(silverlings_per_good * sold)
             
             # Si tuile 4 : gagne 1 ouvrier en vendant des marchandises
-            self.apply_goods_sold_effects(sold)
+            self.apply_goods_sold_effects()
         
         return sold
 
@@ -341,3 +344,194 @@ class Player:
         Track a bonus tile claimed by the player (for end-game scoring).
         """
         self.bonus_tiles.append(bonus_name)
+
+    # =============================
+    # Dice Management
+    # =============================
+
+    def roll_dice(self) -> None:
+        """
+        Roll 2 dice at the beginning of the player's turn.
+        Each die has values 1-6.
+        """
+        import random
+        self.dice = [random.randint(1, 6), random.randint(1, 6)]
+
+    def get_available_dice(self) -> List[int]:
+        """
+        Returns the list of dice values currently available to the player.
+        """
+        return self.dice.copy()
+
+    def has_die_value(self, value: int) -> bool:
+        """
+        Check if the player has a die with the specified value.
+        """
+        return value in self.dice
+
+    def use_die(self, value: int) -> None:
+        """
+        Remove a die with the specified value from the player's available dice.
+        Raises ValueError if no such die exists.
+        """
+        if value not in self.dice:
+            raise ValueError(f"{self.name} does not have a die with value {value}.")
+        self.dice.remove(value)
+
+    def can_reach_value_with_workers(self, target: int, base_value: int) -> Tuple[bool, int]:
+        """
+        Check if the player can adjust a die from base_value to target using workers.
+        Returns (can_reach, workers_needed).
+        
+        Workers can adjust die value by +/- adjustment_per_worker (typically 1, or 2 with yellow tile 8).
+        Die values wrap around: 6+1=1, 1-1=6.
+        """
+        if target < 1 or target > 6 or base_value < 1 or base_value > 6:
+            return (False, 0)
+        
+        if base_value == target:
+            return (True, 0)
+        
+        adjustment = self.get_die_adjustment_per_worker()
+        
+        # Calculate forward distance (wrapping at 6->1)
+        forward_dist = (target - base_value) % 6
+        if forward_dist == 0:
+            forward_dist = 6
+            
+        # Calculate backward distance (wrapping at 1->6)
+        backward_dist = (base_value - target) % 6
+        if backward_dist == 0:
+            backward_dist = 6
+        
+        min_distance = min(forward_dist, backward_dist)
+        workers_needed = (min_distance + adjustment - 1) // adjustment  # Ceiling division
+        
+        if workers_needed <= self.workers:
+            return (True, workers_needed)
+        return (False, workers_needed)
+
+    def can_use_die_for_depot(self, depot_id: int) -> Tuple[bool, int, int]:
+        """
+        On check si le joueur peut prendre la tuile du dépôt avec l'ID donné.
+        Les 3 valeurs du tuple vont nous servir dans les autres fonctions donc on les garde.
+        
+        Returns: (can_take, die_value_to_use, workers_needed)
+        - can_take: True if the action is possible
+        - die_value_to_use: The die value that can be used (0 if not possible)
+        - workers_needed: Number of workers needed (0 if exact match)
+        """
+        if depot_id < 1 or depot_id > 6:
+            return (False, 0, 0)
+        
+        # First check for exact match
+        if depot_id in self.dice:
+            return (True, depot_id, 0)
+        
+        # Check if we can reach depot_id using workers
+        best_option: Tuple[bool, int, int] = (False, 0, 999)
+        for die_value in self.dice:
+            can_reach, workers_needed = self.can_reach_value_with_workers(depot_id, die_value)
+            if can_reach and workers_needed < best_option[2]:
+                best_option = (True, die_value, workers_needed)
+        
+        if best_option[0]:
+            return best_option
+        return (False, 0, 0)
+
+    def can_use_die_for_placement(self, coord: Tuple[int, int]) -> Tuple[bool, int, int]:
+        """
+        Check if the player can place a tile at the given coordinate.
+        
+        Returns: (can_place, die_value_to_use, workers_needed)
+        - can_place: True if the action is possible with available dice
+        - die_value_to_use: The die value that can be used (0 if not possible)
+        - workers_needed: Number of workers needed (0 if exact match or free adjustment)
+        """
+        slot = self.board.hex_map.get_slot(coord)
+        if slot is None:
+            return (False, 0, 0)
+        
+        target_value = slot.dice_value
+        tile_type = slot.allowed_type
+        
+        # Check for exact die match
+        if target_value in self.dice:
+            return (True, target_value, 0)
+        
+        # Check for free placement adjustment (yellow tiles 9-11)
+        has_free_adjustment = self.get_free_placement_die_adjustment(tile_type)
+        if has_free_adjustment and len(self.dice) > 0:
+            # Can use any die with free adjustment
+            return (True, self.dice[0], 0)
+        
+        # Check if we can reach target using workers
+        best_option: Tuple[bool, int, int] = (False, 0, 999)
+        for die_value in self.dice:
+            can_reach, workers_needed = self.can_reach_value_with_workers(target_value, die_value)
+            if can_reach and workers_needed < best_option[2]:
+                best_option = (True, die_value, workers_needed)
+        
+        if best_option[0]:
+            return best_option
+        return (False, 0, 0)
+
+    def can_perform_action_with_die(self, action_type: str, **kwargs) -> Tuple[bool, int, int]:
+        """
+        Generic check if an action can be performed with available dice.
+        
+        Parameters:
+        - action_type: 'take_tile', 'place_tile', 'take_goods', 'sell_goods'
+        - kwargs: Additional parameters depending on action type
+          - depot_id: for 'take_tile' or 'take_goods'
+          - coord: for 'place_tile'
+        
+        Returns: (can_perform, die_value_to_use, workers_needed)
+        """
+        if len(self.dice) == 0:
+            return (False, 0, 0)
+        
+        if action_type == 'take_tile' or action_type == 'take_goods':
+            depot_id = kwargs.get('depot_id')
+            if depot_id is None:
+                return (False, 0, 0)
+            return self.can_use_die_for_depot(depot_id)
+        
+        elif action_type == 'place_tile':
+            coord = kwargs.get('coord')
+            if coord is None:
+                return (False, 0, 0)
+            return self.can_use_die_for_placement(coord)
+        
+        elif action_type == 'sell_goods':
+            # Selling goods doesn't require a die, just having goods
+            return (True, 0, 0)
+        
+        return (False, 0, 0)
+
+    def get_valid_depot_ids(self) -> List[Tuple[int, int, int]]:
+        """
+        Get all depot IDs the player can access with current dice and workers.
+        
+        Returns: List of (depot_id, die_value_to_use, workers_needed) tuples
+        """
+        valid_depots = []
+        for depot_id in range(1, 7):
+            can_take, die_value, workers_needed = self.can_use_die_for_depot(depot_id)
+            if can_take:
+                valid_depots.append((depot_id, die_value, workers_needed))
+        return valid_depots
+
+    def get_valid_placement_coords(self) -> List[Tuple[Tuple[int, int], int, int]]:
+        """
+        Get all coordinates where the player can place tiles with current dice.
+        
+        Returns: List of (coord, die_value_to_use, workers_needed) tuples
+        """
+        valid_coords = []
+        for coord, slot in self.board.hex_map.grid.items():
+            if not slot.is_occupied:
+                can_place, die_value, workers_needed = self.can_use_die_for_placement(coord)
+                if can_place:
+                    valid_coords.append((coord, die_value, workers_needed))
+        return valid_coords

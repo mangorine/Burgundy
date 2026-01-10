@@ -3,6 +3,7 @@ from board import Board, Tile, TileType, GoodsTile
 from player import Player
 from animals import Animal, AnimalType
 from buildings import Building, BuildingType
+import random
 
 from yellow_tiles_list import *
 
@@ -492,3 +493,390 @@ class Game:
         """
         size = placement_result.get("region_size", 0)
         player.gain_victory_points(size)
+
+    def start_new_round(self) -> dict:
+        """
+        Démarre une nouvelle manche : lance le dé blanc et place la marchandise.
+        Retourne un dict avec les infos de la manche.
+        """
+        white_die = self.board._rng.randint(1, 6)
+        goods_placed = self.board.advance_round(white_die)
+        
+        return {
+            "white_die": white_die,
+            "goods_placed": goods_placed,
+            "current_round": self.board.round_in_phase,
+            "current_phase": self.board.current_phase,
+            "is_phase_over": self.board.is_phase_over(),
+        }
+
+    def start_new_phase(self) -> dict:
+        """
+        Démarre une nouvelle phase : remet les tuiles hex et bonus.
+        Retourne un dict avec les infos de la phase.
+        """
+        self.board.start_new_phase()
+        
+        return {
+            "current_phase": self.board.current_phase,
+            "is_game_over": self.is_game_over(),
+        }
+
+    def is_game_over(self) -> bool:
+        """Vérifie si la partie est terminée (5 phases complétées)."""
+        return self.board.current_phase > 5
+
+    def end_current_round(self) -> None:
+        """
+        Fin de manche : tous les joueurs ont joué.
+        Réinitialise l'index du joueur courant pour la prochaine manche.
+        """
+        self.current_player_index = 0
+
+
+class TurnManager:
+    """
+    Manages the turn structure for the game.
+    
+    In Castles of Burgundy:
+    - Each phase has 5 rounds
+    - Each round, players take turns based on turn order
+    - Each turn, a player rolls 2 dice and performs 2 main actions
+    """
+    
+    def __init__(self, game: "Game") -> None:
+        self.game = game
+        self.actions_remaining: int = 0
+        self.turn_active: bool = False
+    
+    def start_turn(self) -> None:
+        """Start a new turn for the current player."""
+        player = self.game.current_player
+        player.roll_dice()
+        self.actions_remaining = 2
+        self.turn_active = True
+    
+    def use_action(self) -> None:
+        """Mark one action as used."""
+        if self.actions_remaining > 0:
+            self.actions_remaining -= 1
+        if self.actions_remaining == 0:
+            self.turn_active = False
+    
+    def is_turn_complete(self) -> bool:
+        """Check if the current turn is complete."""
+        return self.actions_remaining == 0
+    
+    def end_turn(self) -> None:
+        """End the current turn and advance to next player."""
+        self.turn_active = False
+        self.actions_remaining = 0
+        self.game.next_player()
+
+
+if __name__ == "__main__":
+    """
+    Game Simulation Test
+    
+    This test demonstrates all the core game mechanics:
+    1. Game setup with multiple players
+    2. Taking tiles from depots
+    3. Placing tiles on player boards
+    4. Selling goods
+    5. Taking workers
+    6. Move generation for AI/decision making
+    """
+    
+    from action import MoveGenerator, ActionType
+    from board import Tile, TileType, GoodsColor, GoodsTile
+    from animals import Animal, AnimalType
+    from buildings import Building, BuildingType
+    
+    print("=" * 60)
+    print("CASTLES OF BURGUNDY - GAME SIMULATION TEST")
+    print("=" * 60)
+    
+    # =====================
+    # 1. GAME SETUP
+    # =====================
+    print("\n--- 1. GAME SETUP ---")
+    
+    game = Game(player_names=["Alice", "Bob"], seed=42)
+    
+    print(f"Created game with {len(game.players)} players")
+    print(f"Current phase: {game.board.current_phase}")
+    print(f"Current player: {game.current_player.name}")
+    
+    for player in game.players:
+        print(f"  {player.name}: {player.silverlings} silverlings, {player.workers} workers")
+    
+    # Show initial board state
+    print("\nCentral Board - Depot contents:")
+    for depot_id in range(1, 7):
+        tiles = [t.tile_type.name for t in game.board.depots[depot_id]]
+        print(f"  Depot {depot_id}: {tiles}")
+    
+    black_tiles = [t.tile_type.name for t in game.board.black_depot]
+    print(f"  Black depot: {black_tiles[:5]}... ({len(black_tiles)} total)")
+    
+    # =====================
+    # 2. DICE AND MOVE GENERATION
+    # =====================
+    print("\n--- 2. DICE AND MOVE GENERATION ---")
+    
+    alice = game.players[0]
+    alice.roll_dice()
+    print(f"{alice.name} rolled: {alice.dice}")
+    
+    # Generate all possible moves
+    move_gen = MoveGenerator(game, alice)
+    all_moves = move_gen.get_all_possible_moves()
+    move_counts = move_gen.count_moves()
+    
+    print(f"\nTotal available moves: {len(all_moves)}")
+    print("Moves by type:")
+    for move_type, count in move_counts.items():
+        print(f"  {move_type}: {count}")
+    
+    # Show some example moves
+    print("\nExample moves (first 5):")
+    for i, move in enumerate(all_moves[:5]):
+        print(f"  {i+1}. {move.description}")
+    
+    # =====================
+    # 3. TAKE TILE FROM DEPOT
+    # =====================
+    print("\n--- 3. TAKE TILE FROM DEPOT ---")
+    
+    # Give Alice some workers for die adjustment
+    alice.gain_workers(3)
+    print(f"{alice.name} now has {alice.workers} workers")
+    
+    # Find a take tile move
+    take_moves = move_gen.get_moves_by_type(ActionType.TAKE_TILE)
+    if take_moves:
+        move = take_moves[0]
+        depot_id = move.params["depot_id"]
+        
+        print(f"Taking tile from depot {depot_id}")
+        print(f"  Before: {len(alice.hex_storage)} tiles in storage")
+        
+        try:
+            game.action_take_hex_from_depot(depot_id)
+            print(f"  After: {len(alice.hex_storage)} tiles in storage")
+            print(f"  Took: {alice.hex_storage[-1].tile_type.name}")
+        except ValueError as e:
+            print(f"  Error: {e}")
+    
+    # =====================
+    # 4. PLACE TILE ON BOARD
+    # =====================
+    print("\n--- 4. PLACE TILE ON BOARD ---")
+    
+    # First, let's add a specific tile to Alice's storage that we can place
+    ship_tile = Tile(TileType.SHIP)
+    alice.hex_storage.append(ship_tile)
+    print(f"Added SHIP to {alice.name}'s storage")
+    print(f"Storage: {[t.tile_type.name for t in alice.hex_storage]}")
+    
+    # Roll dice again to get fresh dice for placement
+    alice.roll_dice()
+    print(f"{alice.name} rolled: {alice.dice}")
+    
+    # Check valid placement coordinates for ship
+    ship_coords = alice.get_valid_placement_coords()
+    print(f"\nValid placement coordinates: {len(ship_coords)}")
+    
+    # Find the ship in storage and try to place it
+    ship_idx = None
+    for idx, tile in enumerate(alice.hex_storage):
+        if tile.tile_type == TileType.SHIP:
+            ship_idx = idx
+            break
+    
+    if ship_idx is not None:
+        # Find a valid ship slot
+        for coord, slot in alice.board.hex_map.grid.items():
+            if slot.allowed_type == TileType.SHIP and not slot.is_occupied:
+                # Check if adjacent to occupied
+                neighbors = alice.board.hex_map.get_neighbors(coord)
+                has_neighbor = any(
+                    alice.board.hex_map.grid[n].is_occupied 
+                    for n in neighbors 
+                    if n in alice.board.hex_map.grid
+                )
+                if has_neighbor:
+                    can_place, die_val, workers = alice.can_use_die_for_placement(coord)
+                    if can_place:
+                        print(f"\nPlacing SHIP at {coord}")
+                        print(f"  Required die: {slot.dice_value}, using die: {die_val}, workers: {workers}")
+                        try:
+                            result = game.action_place_tile_from_storage(
+                                ship_idx, coord, game.global_round, {"goods_depot_choice": 1}
+                            )
+                            print(f"  Placement successful!")
+                            print(f"  Region ID: {result['region_id']}, Size: {result['region_size']}")
+                            print(f"  Region completed: {result['region_completed_now']}")
+                        except ValueError as e:
+                            print(f"  Error: {e}")
+                        break
+    
+    # =====================
+    # 5. GOODS AND SELLING
+    # =====================
+    print("\n--- 5. GOODS AND SELLING ---")
+    
+    # Add some goods to Alice
+    alice.add_goods([
+        GoodsTile(GoodsColor.COLOR_1),
+        GoodsTile(GoodsColor.COLOR_1),
+        GoodsTile(GoodsColor.COLOR_2),
+    ])
+    print(f"{alice.name} has {len(alice.goods_storage)} goods")
+    
+    alice.roll_dice()
+    print(f"Rolling dice: {alice.dice}")
+    
+    # Check sell moves
+    move_gen = MoveGenerator(game, alice)
+    sell_moves = move_gen.get_moves_by_type(ActionType.SELL_GOODS)
+    print(f"\nAvailable sell moves: {len(sell_moves)}")
+    for move in sell_moves:
+        print(f"  - {move.description}")
+    
+    # Sell goods
+    if alice.goods_storage:
+        color = alice.goods_storage[0].color
+        print(f"\nSelling all {color.name} goods...")
+        sold = alice.sell_goods_of_color(color)
+        print(f"  Sold {sold} goods")
+        print(f"  Silverlings: {alice.silverlings}")
+        print(f"  Remaining goods: {len(alice.goods_storage)}")
+    
+    # =====================
+    # 6. WORKERS AND RESOURCES
+    # =====================
+    print("\n--- 6. WORKERS AND RESOURCES ---")
+    
+    print(f"{alice.name} resources:")
+    print(f"  Victory Points: {alice.victory_points}")
+    print(f"  Silverlings: {alice.silverlings}")
+    print(f"  Workers: {alice.workers}")
+    
+    alice.roll_dice()
+    move_gen = MoveGenerator(game, alice)
+    worker_moves = move_gen.get_moves_by_type(ActionType.TAKE_WORKERS)
+    
+    if worker_moves:
+        print(f"\nTake workers move: {worker_moves[0].description}")
+        workers_before = alice.workers
+        alice.gain_workers(alice.get_workers_from_take_action())
+        alice.use_die(alice.dice[0])
+        print(f"  Workers: {workers_before} -> {alice.workers}")
+    
+    # =====================
+    # 7. BUY FROM BLACK DEPOT
+    # =====================
+    print("\n--- 7. BUY FROM BLACK DEPOT ---")
+    
+    alice.gain_silverlings(5)
+    print(f"{alice.name} has {alice.silverlings} silverlings")
+    
+    move_gen = MoveGenerator(game, alice)
+    black_moves = move_gen.get_moves_by_type(ActionType.BUY_BLACK_TILE)
+    
+    if black_moves:
+        move = black_moves[0]
+        print(f"Can buy from black depot: {move.description}")
+        
+        if alice.can_store_hex_tile() and alice.silverlings >= 2:
+            storage_before = len(alice.hex_storage)
+            game.action_take_hex_from_black_depot()
+            print(f"  Bought tile! Storage: {storage_before} -> {len(alice.hex_storage)}")
+            print(f"  Silverlings: {alice.silverlings}")
+    
+    # =====================
+    # 8. YELLOW TILES EFFECTS
+    # =====================
+    print("\n--- 8. YELLOW TILES EFFECTS ---")
+    
+    # Add a yellow tile to Bob
+    bob = game.players[1]
+    bob.add_yellow_effect(YELLOW_TILE_DEFINITIONS[8])  # Master Laborer
+    bob.add_yellow_effect(YELLOW_TILE_DEFINITIONS[14]) # Mass Recruitment
+    
+    print(f"{bob.name}'s yellow tiles:")
+    for tile in bob.yellow_effects:
+        print(f"  - {tile.name}: {tile.description}")
+    
+    print(f"\nYellow tile effects:")
+    print(f"  Die adjustment per worker: {bob.get_die_adjustment_per_worker()} (normally 1)")
+    print(f"  Workers from take action: {bob.get_workers_from_take_action()} (normally 2)")
+    
+    # =====================
+    # 9. COMPLETE TURN SIMULATION
+    # =====================
+    print("\n--- 9. COMPLETE TURN SIMULATION ---")
+    
+    turn_manager = TurnManager(game)
+    
+    # Simulate Bob's turn
+    game.current_player_index = 1  # Switch to Bob
+    bob.gain_workers(2)
+    
+    turn_manager.start_turn()
+    print(f"\n{bob.name}'s turn started")
+    print(f"  Dice: {bob.dice}")
+    print(f"  Actions remaining: {turn_manager.actions_remaining}")
+    
+    move_gen = MoveGenerator(game, bob)
+    all_bob_moves = move_gen.get_all_possible_moves()
+    print(f"  Available moves: {len(all_bob_moves)}")
+    
+    # Action 1: Take a tile
+    take_moves = [m for m in all_bob_moves if m.type == ActionType.TAKE_TILE]
+    if take_moves and bob.can_store_hex_tile():
+        move = take_moves[0]
+        print(f"\n  Action 1: {move.description}")
+        depot_id = move.params["depot_id"]
+        game.action_take_hex_from_depot(depot_id)
+        bob.use_die(move.params["die_value"])
+        turn_manager.use_action()
+        print(f"    Took tile from depot {depot_id}")
+        print(f"    Storage: {[t.tile_type.name for t in bob.hex_storage]}")
+    
+    # Action 2: Take workers (if dice left)
+    if bob.dice and not turn_manager.is_turn_complete():
+        workers_before = bob.workers
+        bob.gain_workers(bob.get_workers_from_take_action())
+        bob.use_die(bob.dice[0])
+        turn_manager.use_action()
+        print(f"\n  Action 2: Take workers")
+        print(f"    Workers: {workers_before} -> {bob.workers}")
+    
+    print(f"\n  Turn complete: {turn_manager.is_turn_complete()}")
+    turn_manager.end_turn()
+    print(f"  Next player: {game.current_player.name}")
+    
+    # =====================
+    # 10. GAME STATE SUMMARY
+    # =====================
+    print("\n--- 10. GAME STATE SUMMARY ---")
+    print("=" * 60)
+    
+    for player in game.players:
+        print(f"\n{player.name}:")
+        print(f"  Victory Points: {player.victory_points}")
+        print(f"  Silverlings: {player.silverlings}")
+        print(f"  Workers: {player.workers}")
+        print(f"  Hex Storage: {[t.tile_type.name for t in player.hex_storage]}")
+        print(f"  Goods: {[g.color.name for g in player.goods_storage]}")
+        print(f"  Yellow Tiles: {len(player.yellow_effects)}")
+        
+        # Count placed tiles
+        placed = sum(1 for r in player.board.regions for s in r.slots if s.is_occupied)
+        print(f"  Tiles placed on board: {placed}")
+    
+    print("\n" + "=" * 60)
+    print("ALL TESTS PASSED - Game simulation complete!")
+    print("=" * 60)

@@ -25,9 +25,10 @@ class Tile:
 
 
 class Slot:
-    def __init__(self, coord: Tuple[int, int], allowed_type: TileType):
+    def __init__(self, coord: Tuple[int, int], allowed_type: TileType, dice_value: int = 1):
         self.coord = coord
         self.allowed_type = allowed_type
+        self.dice_value = dice_value  # Die number required to place on this slot (1-6)
         self.is_occupied = False
         self.tile = None
 
@@ -725,5 +726,5 @@ if __name__ == "__main__":
     board.place_tile(Tile_building, (0, 1), 1, p1)
 
     # deuxième building
-    board.place_tile(Tile_building2, (1, 1), 1, p1) # devrait retourner une erreur si la tuile jaune n'est pas là
+    board.place_tile(Tile_building2, (1, 1), 1, p1)# devrait retourner une erreur si la tuile jaune n'est pas là
     print("runned")
