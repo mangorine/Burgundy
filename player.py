@@ -23,8 +23,9 @@ class Player:
     Toutes les opérations ici sont en O(1) ou O(n) sur la taille des listes
     (n = nb de tuiles ou marchandises).
     """
-
+   
     name: str
+    step_position: int = 1
     layout_id: int = 1
     board: "PlayerBoard" = field(init=False)
 
