@@ -309,20 +309,6 @@ class GameController:
             message=f"Tour terminé. Au tour de {self._game.current_player.name}.",
             extra_data={"round_over": False, "next_player": self._game.current_player.name}  # Fixed: was 'data='
         )
-
-    def get_game_state(self) -> dict:
-        """Retourne l'état complet du jeu."""
-        return {
-            "current_phase": self._game.board.current_phase,
-            "current_round": self._game.board.round_in_phase,
-            "current_player": self._game.current_player.name,
-            "round_started": self._round_started,
-            "turn_started": self._turn_started,
-            "is_game_over": self._game.is_game_over(),
-            "goods_depots": {
-                i: len(depot) for i, depot in enumerate(self._game.board.goods_depots)
-            },
-        }
     
     def force_end_turn(self) -> ActionResponse:
         """
