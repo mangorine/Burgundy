@@ -136,8 +136,8 @@ class HexMap:
             if coord not in layout:
                 raise ValueError(f"Layout {layout_id} is missing coordinate {coord}")
             else:
-                allowed_type = layout[coord]
-            self.grid[coord] = Slot(coord, allowed_type)
+                allowed_type, dice_value = layout[coord]
+            self.grid[coord] = Slot(coord, allowed_type, dice_value)
         # temp for layout1, first castle is placed
         slot = self.get_slot((0, 0))
         slot.place_tile(Tile(TileType.CASTLE))
@@ -244,12 +244,13 @@ class PlayerBoard:
                     return region
         return None
 
-    def can_place_tile_at(self, tile: Tile, coord: Tuple[int, int], player: "Player") -> Optional[bool]:
+    def can_place_tile_at(self, tile: Tile, coord: Tuple[int, int], player: "Player", die_value: int) -> Optional[bool]:
         """
         Vérifie si la tuile peut être placée sur ce coord :
         - coord existe
         - slot pas occupé
         - type compatible
+        - si le dé a la même valeur que la valeur du slot (gérée ailleurs)
         (Ici on ne vérifie PAS les règles globales genre 'doit être adjacent à une tuile déjà posée')
         """
         if coord not in self.hex_map.grid:
@@ -285,10 +286,13 @@ class PlayerBoard:
             if not can_place_building and player.allows_duplicate_buildings_in_city():
                 can_place_building = True
         
-        return slot.can_place_tile(tile) and neighbors_occupied and can_place_building
+        # Check if die value matches the slot's dice value
+        die_matches = (die_value == slot.dice_value)
+        
+        return slot.can_place_tile(tile) and neighbors_occupied and can_place_building and die_matches
 
     def place_tile(
-        self, tile: Tile, coord: Tuple[int, int], current_round: int, player: "Player"
+        self, tile: Tile, coord: Tuple[int, int], current_round: int, player: "Player", die_value: int
     ) -> dict:
         """
         Place une tuile sur le board du joueur, puis met à jour les régions:
@@ -296,7 +300,7 @@ class PlayerBoard:
         - vérifie si la région vient d'être complétée
         - renvoie un résumé utile (score potentiel, région complétée, etc.)
         """
-        if not self.can_place_tile_at(tile, coord, player):
+        if not self.can_place_tile_at(tile, coord, player, die_value):
             raise ValueError(f"Illegal placement at {coord} for tile {tile}")
 
         slot = self.hex_map.get_slot(coord)
@@ -630,9 +634,9 @@ if __name__ == "__main__":
 
     # aucune limitation, mais renvoie illegal placement si c'est un mauvais placement
     # board.place_tile(Tile_animal, (0, -3), 1)
-    board.place_tile(Tile_ship, (1, 0), 1, p1)
-    board.place_tile(Tile_building, (0, 1), 1, p1)
+    board.place_tile(Tile_ship, (1, 0), 1, p1, 5)  # (1, 0) has dice_value 5
+    board.place_tile(Tile_building, (0, 1), 1, p1, 3)  # (0, 1) has dice_value 3
 
     # deuxième building
-    board.place_tile(Tile_building2, (1, 1), 1, p1)# devrait retourner une erreur si la tuile jaune n'est pas là
+    board.place_tile(Tile_building2, (1, 1), 1, p1, 1)  # (1, 1) has dice_value 1 - devrait retourner une erreur si la tuile jaune n'est pas là
     print("runned")

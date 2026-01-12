@@ -504,20 +504,11 @@ class GameController:
             die_value = action.params.get("die_value", 0)
             workers_cost = action.cost.get("workers", 0)
             
-            # Spend workers if needed
-            if workers_cost > 0:
-                player.spend_workers(workers_cost)
-            
-            # Place the tile
-            # on utilise un dico vide qui sera remplie par _apply_castle_effect
+            # Place the tile (action_place_tile_from_storage handles die usage and workers)
             ctx = extra_context.copy()
             result = self._game.action_place_tile_from_storage(
-                storage_index, coord, self._game.global_round, ctx
+                storage_index, coord, self._game.global_round, die_value, workers_cost, ctx
             )
-            
-            # Use the die
-            if die_value in player.dice:
-                player.use_die(die_value)
             
             # un chateau donne un extra action
             if ctx.get("castle_bonus_action_available"):

@@ -359,10 +359,11 @@ while running:
                         reset_player_view_state()
                     else:
                         try:
-                            # ⚠️ Ton Game1 actuel attend (storage_index, coord, die_value)
-                            # mais ton UI passe (round, ctx). Donc on appelle directement le board:
+                            # Get die value from slot
+                            slot = player.board.hex_map.get_slot(coord)
+                            die_value = slot.dice_value
                             tile = player.remove_hex_from_storage(selected_storage_index)
-                            player.board.place_tile(tile, coord, current_round=getattr(game, "round", 1), player=player)
+                            player.board.place_tile(tile, coord, current_round=getattr(game, "round", 1), player=player, die_value=die_value)
                             toast("Tuile posée", 1.2)
                             consume_one_action_auto_die()
                         except Exception as e:
@@ -382,7 +383,10 @@ while running:
         player = game.players[current_player_index]
         legal_coords.clear()
         for c in player.board.hex_map.grid:
-            if player.board.can_place_tile_at(selected_tile, c, player):
+            slot = player.board.hex_map.get_slot(c)
+            # Check if tile can be placed at this coord with valid die
+            can_place, _, _ = player.can_use_die_for_placement(c)
+            if can_place and player.board.can_place_tile_at(selected_tile, c, player, slot.dice_value):
                 legal_coords.add(c)
 
     # RENDU

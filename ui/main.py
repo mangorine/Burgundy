@@ -181,19 +181,29 @@ while running:
                         and selected_storage_index is not None
                         and coord in legal_coords
                     ):
-                        result = game.action_place_tile_from_storage(
-                            selected_storage_index,
-                            coord,
-                            game.global_round,
-                            extra_context={},
-                        )
+                        # Get die value from slot
+                        slot = player.board.hex_map.get_slot(coord)
+                        die_value = slot.dice_value if slot else 1
+                        
+                        # Check if player can use die for this placement
+                        can_place, die_to_use, workers_needed = player.can_use_die_for_placement(coord)
+                        if can_place:
+                            result = game.action_place_tile_from_storage(
+                                selected_storage_index,
+                                coord,
+                                game.global_round,
+                                die_to_use,
+                                workers_needed,
+                                extra_context={},
+                            )
+                            print("Placement effectué :", result)
+                        else:
+                            print("Cannot place tile: no valid die available")
 
                         selected_tile = None
                         selected_storage_index = None
                         selected_hex = None
                         legal_coords.clear()
-
-                        print("Placement effectué :", result)
 
                     # stockage
                     storage_origin = (WIDTH // 2 - 90, HEIGHT - 120)
@@ -225,7 +235,10 @@ while running:
             if selected_tile:
                 player = game.players[current_player_index]
                 for coord in player.board.hex_map.grid:
-                    if player.board.can_place_tile_at(selected_tile, coord, player):
+                    slot = player.board.hex_map.get_slot(coord)
+                    # Check if tile can be placed at this coord with valid die
+                    can_place, _, _ = player.can_use_die_for_placement(coord)
+                    if can_place and player.board.can_place_tile_at(selected_tile, coord, player, slot.dice_value):
                         legal_coords.add(coord)
        
     # ===============================

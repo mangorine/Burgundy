@@ -137,6 +137,7 @@ class Game:
             coord,
             current_round=self.round,
             player=p,
+            die_value=die_value,
         )
 
         self.use_die(die_value)
