@@ -524,7 +524,9 @@ class Game:
 
     def is_game_over(self) -> bool:
         """Vérifie si la partie est terminée (5 phases complétées)."""
-        return self.board.current_phase > 5
+        # current_phase returns 'A', 'B', 'C', 'D', 'E' or '?'
+        # Game is over when current_phase_index >= 5 (after phase E)
+        return self.board.current_phase_index >= len(self.board.PHASES)
 
     def end_current_round(self) -> None:
         """
