@@ -2,7 +2,7 @@
 import pygame
 import time
 
-from Game1 import Game
+from game import Game
 from board import TileType, Tile, PlayerBoard
 from render_hex import draw_player_board, draw_storage, pixel_to_axial
 from render_central import (
