@@ -74,141 +74,49 @@ class Region:
 LAYOUTS = {
     1: {
         # r = -3 (q = 0..3)
-        (0, -3): TileType.ANIMAL,
-        (1, -3): TileType.CASTLE,
-        (2, -3): TileType.CASTLE,
-        (3, -3): TileType.KNOWLEDGE,
+        (0, -3): (TileType.ANIMAL, 6),
+        (1, -3): (TileType.CASTLE, 5),
+        (2, -3): (TileType.CASTLE, 4),
+        (3, -3): (TileType.KNOWLEDGE, 3),
         # r = -2 (q = -1..3)
-        (-1, -2): TileType.ANIMAL,
-        (0, -2): TileType.ANIMAL,
-        (1, -2): TileType.CASTLE,
-        (2, -2): TileType.KNOWLEDGE,
-        (3, -2): TileType.BUILDING,
+        (-1, -2): (TileType.ANIMAL, 2),
+        (0, -2): (TileType.ANIMAL, 1),
+        (1, -2): (TileType.CASTLE, 6),
+        (2, -2): (TileType.KNOWLEDGE, 5),
+        (3, -2): (TileType.BUILDING, 4),
         # r = -1 (q = -2..3)
-        (-2, -1): TileType.ANIMAL,
-        (-1, -1): TileType.ANIMAL,
-        (0, -1): TileType.BUILDING,
-        (1, -1): TileType.KNOWLEDGE,
-        (2, -1): TileType.BUILDING,
-        (3, -1): TileType.BUILDING,
+        (-2, -1): (TileType.ANIMAL, 5),
+        (-1, -1): (TileType.ANIMAL, 4),
+        (0, -1): (TileType.BUILDING, 3),
+        (1, -1): (TileType.KNOWLEDGE, 1),
+        (2, -1): (TileType.BUILDING, 2),
+        (3, -1): (TileType.BUILDING, 3),
         # r = 0 (q = -3..3)
-        (-3, 0): TileType.SHIP,
-        (-2, 0): TileType.SHIP,
-        (-1, 0): TileType.SHIP,
-        (0, 0): TileType.CASTLE,
-        (1, 0): TileType.SHIP,
-        (2, 0): TileType.SHIP,
-        (3, 0): TileType.SHIP,
+        (-3, 0): (TileType.SHIP, 6),
+        (-2, 0): (TileType.SHIP, 1),
+        (-1, 0): (TileType.SHIP, 2),
+        (0, 0): (TileType.CASTLE, 6),
+        (1, 0): (TileType.SHIP, 5),
+        (2, 0): (TileType.SHIP, 4),
+        (3, 0): (TileType.SHIP, 3),
         # r = 1 (q = -3..2)
-        (-3, 1): TileType.BUILDING,
-        (-2, 1): TileType.BUILDING,
-        (-1, 1): TileType.MINE,
-        (0, 1): TileType.BUILDING,
-        (1, 1): TileType.BUILDING,
-        (2, 1): TileType.ANIMAL,
+        (-3, 1): (TileType.BUILDING, 2),
+        (-2, 1): (TileType.BUILDING, 5),
+        (-1, 1): (TileType.MINE, 4),
+        (0, 1): (TileType.BUILDING, 3),
+        (1, 1): (TileType.BUILDING, 1),
+        (2, 1): (TileType.ANIMAL, 2),
         # r = 2 (q = -3..1)
-        (-3, 2): TileType.BUILDING,
-        (-2, 2): TileType.MINE,
-        (-1, 2): TileType.KNOWLEDGE,
-        (0, 2): TileType.BUILDING,
-        (1, 2): TileType.BUILDING,
+        (-3, 2): (TileType.BUILDING, 6),
+        (-2, 2): (TileType.MINE, 1),
+        (-1, 2): (TileType.KNOWLEDGE, 2),
+        (0, 2): (TileType.BUILDING, 5),
+        (1, 2): (TileType.BUILDING, 6),
         # r = 3 (q = -3..0)
-        (-3, 3): TileType.MINE,
-        (-2, 3): TileType.KNOWLEDGE,
-        (-1, 3): TileType.KNOWLEDGE,
-        (0, 3): TileType.BUILDING,
-    },
-    2: {
-        # r = -3 (q = 0..3)
-        (0, -3): TileType.SHIP,
-        (1, -3): TileType.ANIMAL,
-        (2, -3): TileType.ANIMAL,
-        (3, -3): TileType.CASTLE,
-        # r = -2 (q = -1..3)
-        (-1, -2): TileType.SHIP,
-        (0, -2): TileType.BUILDING,
-        (1, -2): TileType.ANIMAL,
-        (2, -2): TileType.KNOWLEDGE,
-        (3, -2): TileType.BUILDING,
-        # r = -1 (q = -2..3)
-        (-2, -1): TileType.ANIMAL,
-        (-1, -1): TileType.BUILDING,
-        (0, -1): TileType.BUILDING,
-        (1, -1): TileType.KNOWLEDGE,
-        (2, -1): TileType.BUILDING,
-        (3, -1): TileType.BUILDING,
-        # r = 0 (q = -3..3)
-        (-3, 0): TileType.ANIMAL,
-        (-2, 0): TileType.BUILDING,
-        (-1, 0): TileType.KNOWLEDGE,
-        (0, 0): TileType.KNOWLEDGE,
-        (1, 0): TileType.BUILDING,
-        (2, 0): TileType.KNOWLEDGE,
-        (3, 0): TileType.ANIMAL,
-        # r = 1 (q = -3..2)
-        (-3, 1): TileType.KNOWLEDGE,
-        (-2, 1): TileType.BUILDING,
-        (-1, 1): TileType.MINE,
-        (0, 1): TileType.MINE,
-        (1, 1): TileType.BUILDING,
-        (2, 1): TileType.SHIP,
-        # r = 2 (q = -3..1)
-        (-3, 2): TileType.BUILDING,
-        (-2, 2): TileType.MINE,
-        (-1, 2): TileType.MINE,
-        (0, 2): TileType.KNOWLEDGE,
-        (1, 2): TileType.SHIP,
-        # r = 3 (q = -3..0)
-        (-3, 3): TileType.CASTLE,
-        (-2, 3): TileType.SHIP,
-        (-1, 3): TileType.SHIP,
-        (0, 3): TileType.ANIMAL,
-    },
-    3: {
-        # r = -3 (q = 0..3)
-        (0, -3): TileType.KNOWLEDGE,
-        (1, -3): TileType.KNOWLEDGE,
-        (2, -3): TileType.ANIMAL,
-        (3, -3): TileType.SHIP,
-        # r = -2 (q = -1..3)
-        (-1, -2): TileType.KNOWLEDGE,
-        (0, -2): TileType.KNOWLEDGE,
-        (1, -2): TileType.ANIMAL,
-        (2, -2): TileType.SHIP,
-        (3, -2): TileType.SHIP,
-        # r = -1 (q = -2..3)
-        (-2, -1): TileType.BUILDING,
-        (-1, -1): TileType.MINE,
-        (0, -1): TileType.KNOWLEDGE,
-        (1, -1): TileType.SHIP,
-        (2, -1): TileType.BUILDING,
-        (3, -1): TileType.BUILDING,
-        # r = 0 (q = -3..3)
-        (-3, 0): TileType.BUILDING,
-        (-2, 0): TileType.MINE,
-        (-1, 0): TileType.BUILDING,
-        (0, 0): TileType.CASTLE,
-        (1, 0): TileType.KNOWLEDGE,
-        (2, 0): TileType.BUILDING,
-        (3, 0): TileType.BUILDING,
-        # r = 1 (q = -3..2)
-        (-3, 1): TileType.BUILDING,
-        (-2, 1): TileType.MINE,
-        (-1, 1): TileType.KNOWLEDGE,
-        (0, 1): TileType.KNOWLEDGE,
-        (1, 1): TileType.SHIP,
-        (2, 1): TileType.ANIMAL,
-        # r = 2 (q = -3..1)
-        (-3, 2): TileType.ANIMAL,
-        (-2, 2): TileType.ANIMAL,
-        (-1, 2): TileType.MINE,
-        (0, 2): TileType.MINE,
-        (1, 2): TileType.KNOWLEDGE,
-        # r = 3 (q = -3..0)
-        (-3, 3): TileType.ANIMAL,
-        (-2, 3): TileType.BUILDING,
-        (-1, 3): TileType.BUILDING,
-        (0, 3): TileType.CASTLE,
+        (-3, 3): (TileType.MINE, 3),
+        (-2, 3): (TileType.KNOWLEDGE, 4),
+        (-1, 3): (TileType.KNOWLEDGE, 1),
+        (0, 3): (TileType.BUILDING, 3),
     },
 }
 
@@ -228,8 +136,8 @@ class HexMap:
             if coord not in layout:
                 raise ValueError(f"Layout {layout_id} is missing coordinate {coord}")
             else:
-                allowed_type = layout[coord]
-            self.grid[coord] = Slot(coord, allowed_type)
+                allowed_type, dice_value = layout[coord]
+            self.grid[coord] = Slot(coord, allowed_type, dice_value)
         # temp for layout1, first castle is placed
         slot = self.get_slot((0, 0))
         slot.place_tile(Tile(TileType.CASTLE))
@@ -336,12 +244,13 @@ class PlayerBoard:
                     return region
         return None
 
-    def can_place_tile_at(self, tile: Tile, coord: Tuple[int, int], player: "Player") -> Optional[bool]:
+    def can_place_tile_at(self, tile: Tile, coord: Tuple[int, int], player: "Player", die_value: int) -> Optional[bool]:
         """
         Vérifie si la tuile peut être placée sur ce coord :
         - coord existe
         - slot pas occupé
         - type compatible
+        - si le dé a la même valeur que la valeur du slot (gérée ailleurs)
         (Ici on ne vérifie PAS les règles globales genre 'doit être adjacent à une tuile déjà posée')
         """
         if coord not in self.hex_map.grid:
@@ -377,10 +286,13 @@ class PlayerBoard:
             if not can_place_building and player.allows_duplicate_buildings_in_city():
                 can_place_building = True
         
-        return slot.can_place_tile(tile) and neighbors_occupied and can_place_building
+        # Check if die value matches the slot's dice value
+        die_matches = (die_value == slot.dice_value)
+        
+        return slot.can_place_tile(tile) and neighbors_occupied and can_place_building and die_matches
 
     def place_tile(
-        self, tile: Tile, coord: Tuple[int, int], current_round: int, player: "Player"
+        self, tile: Tile, coord: Tuple[int, int], current_round: int, player: "Player", die_value: int
     ) -> dict:
         """
         Place une tuile sur le board du joueur, puis met à jour les régions:
@@ -388,7 +300,7 @@ class PlayerBoard:
         - vérifie si la région vient d'être complétée
         - renvoie un résumé utile (score potentiel, région complétée, etc.)
         """
-        if not self.can_place_tile_at(tile, coord, player):
+        if not self.can_place_tile_at(tile, coord, player, die_value):
             raise ValueError(f"Illegal placement at {coord} for tile {tile}")
 
         slot = self.hex_map.get_slot(coord)
@@ -722,9 +634,9 @@ if __name__ == "__main__":
 
     # aucune limitation, mais renvoie illegal placement si c'est un mauvais placement
     # board.place_tile(Tile_animal, (0, -3), 1)
-    board.place_tile(Tile_ship, (1, 0), 1, p1)
-    board.place_tile(Tile_building, (0, 1), 1, p1)
+    board.place_tile(Tile_ship, (1, 0), 1, p1, 5)  # (1, 0) has dice_value 5
+    board.place_tile(Tile_building, (0, 1), 1, p1, 3)  # (0, 1) has dice_value 3
 
     # deuxième building
-    board.place_tile(Tile_building2, (1, 1), 1, p1)# devrait retourner une erreur si la tuile jaune n'est pas là
+    board.place_tile(Tile_building2, (1, 1), 1, p1, 1)  # (1, 1) has dice_value 1 - devrait retourner une erreur si la tuile jaune n'est pas là
     print("runned")

@@ -99,6 +99,8 @@ class Game:
         storage_index: int,
         coord: tuple[int, int],
         current_round: int,
+        die_value: int,
+        workers_to_spend: int = 0,
         extra_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
@@ -107,6 +109,8 @@ class Game:
         - storage_index : indice dans player.hex_storage
         - coord : coordonnée hex sur le PlayerBoard
         - current_round : numéro de manche/round global
+        - die_value : valeur du dé utilisé pour cette action
+        - workers_to_spend : nombre d'ouvriers à dépenser pour ajuster le dé
         - extra_context : infos supplémentaires pour certains effets
             (ex : choix du dépôt pour un bateau, couleur à vendre, etc.)
         """
@@ -115,11 +119,33 @@ class Game:
 
         player = self.current_player
 
+        # 0) Vérifier que le joueur a le dé et les ouvriers nécessaires
+        if not player.has_die_value(die_value):
+            raise ValueError(f"{player.name} n'a pas de dé avec la valeur {die_value}.")
+        
+        # Calculer la valeur effective du dé après ajustement avec les ouvriers
+        slot = player.board.hex_map.get_slot(coord)
+        target_value = slot.dice_value
+        tile_type = slot.allowed_type
+        
+        # Vérifier si le joueur a un ajustement gratuit (tuiles jaunes 9-11)
+        has_free_adjustment = player.get_free_placement_die_adjustment(tile_type)
+        
+        if die_value != target_value and not has_free_adjustment:
+            # Il faut des ouvriers pour ajuster
+            if workers_to_spend <= 0:
+                raise ValueError(f"Des ouvriers sont nécessaires pour ajuster le dé de {die_value} à {target_value}.")
+            player.spend_workers(workers_to_spend)
+        
+        # Utiliser le dé
+        player.use_die(die_value)
+
         # 1) On récupère la tuile à poser
         tile = player.remove_hex_from_storage(storage_index)
 
-        # 2) On la pose sur le PlayerBoard
-        placement_result = player.board.place_tile(tile, coord, current_round,player)
+        # 2) On la pose sur le PlayerBoard (on passe target_value car c'est la valeur effective après ajustement)
+        effective_die_value = target_value if (has_free_adjustment or workers_to_spend > 0) else die_value
+        placement_result = player.board.place_tile(tile, coord, current_round, player, effective_die_value)
 
         # 3) On applique les effets selon le type de tuile
         self._apply_tile_effect(player, tile, coord, placement_result, extra_context)
@@ -306,6 +332,8 @@ class Game:
                 return
 
             current_round = extra.get("current_round", 0)
+            die_value = extra.get("die_value", 1)
+            workers_to_spend = extra.get("workers_to_spend", 0)
             nested_ctx = extra.get("extra_context", {})
 
             # IMPORTANT : on NE touche PAS à self.current_player
@@ -314,6 +342,8 @@ class Game:
                 storage_index,
                 extra_coord,
                 current_round,
+                die_value,
+                workers_to_spend,
                 nested_ctx,
             )
             return
@@ -524,7 +554,9 @@ class Game:
 
     def is_game_over(self) -> bool:
         """Vérifie si la partie est terminée (5 phases complétées)."""
-        return self.board.current_phase > 5
+        # current_phase returns 'A', 'B', 'C', 'D', 'E' or '?'
+        # Game is over when current_phase_index >= 5 (after phase E)
+        return self.board.current_phase_index >= len(self.board.PHASES)
 
     def end_current_round(self) -> None:
         """
@@ -712,7 +744,7 @@ if __name__ == "__main__":
                         print(f"  Required die: {slot.dice_value}, using die: {die_val}, workers: {workers}")
                         try:
                             result = game.action_place_tile_from_storage(
-                                ship_idx, coord, game.global_round, {"goods_depot_choice": 1}
+                                ship_idx, coord, game.global_round, die_val, workers, {"goods_depot_choice": 1}
                             )
                             print(f"  Placement successful!")
                             print(f"  Region ID: {result['region_id']}, Size: {result['region_size']}")

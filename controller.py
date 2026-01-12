@@ -214,65 +214,68 @@ class GameController:
     
     def __init__(self, game: Game, seed: Optional[int] = None) -> None:
         self._game = game
-        self._turn_manager = TurnManager(seed)
+        self._turn_manager = TurnManager(game)  # Fixed: pass game, not seed
+        self._rules_engine = RulesEngine(game)  # Added: missing initialization
+        self._state_change_callbacks: List[Callable[[GameStateView], None]] = []  # Added: missing initialization
         self._turn_started = False
-        self._round_started = False  # Nouveau flag
-        self._players_played_this_round = 0  # Compteur de joueurs
+        self._round_started = False
+        self._players_played_this_round = 0
 
     def start_round(self) -> ActionResponse:
         """
-        Démarre une nouvelle manche : lance le dé blanc et place les marchandises.
-        Doit être appelé au début de chaque manche.
+        Starts a new round: rolls the white die and places goods.
         """
         if self._game.is_game_over():
             return ActionResponse(
                 result=ActionResult.GAME_OVER,
-                message="La partie est terminée."
+                message="The game is over."
             )
-        
-        # Vérifier si on doit changer de phase
+
+        # Check if the phase is over and start a new phase if needed
         if self._game.board.is_phase_over():
             phase_info = self._game.start_new_phase()
             if self._game.is_game_over():
                 return ActionResponse(
                     result=ActionResult.GAME_OVER,
-                    message=f"Partie terminée après la phase {phase_info['current_phase'] - 1}!"
+                    message=f"Game over after phase {phase_info['current_phase'] - 1}!"
                 )
-        
+
         round_info = self._game.start_new_round()
         self._round_started = True
         self._players_played_this_round = 0
-        
+
         return ActionResponse(
             result=ActionResult.SUCCESS,
-            message=f"Manche {round_info['current_round']}/5 - Phase {round_info['current_phase']}. "
-                    f"Dé blanc: {round_info['white_die']}. "
-                    f"Marchandise placée: {round_info['goods_placed']}",
-            data=round_info
+            message=f"Round {round_info['current_round']}/5 - Phase {round_info['current_phase']}. "
+                    f"White die: {round_info['white_die']}. "
+                    f"Goods placed: {round_info['goods_placed']}",
+            extra_data=round_info
         )
 
     def start_turn(self) -> ActionResponse:
-        """Démarre le tour du joueur courant."""
+        """
+        Starts the current player's turn.
+        """
         if not self._round_started:
             return ActionResponse(
                 result=ActionResult.INVALID_ACTION,
-                message="La manche n'a pas encore commencé. Appelez start_round() d'abord."
+                message="The round has not started yet. Call start_round() first."
             )
-        
+
         if self._turn_started:
             return ActionResponse(
                 result=ActionResult.INVALID_ACTION,
-                message="Le tour a déjà commencé."
+                message="The turn has already started."
             )
-        
+
         self._turn_manager.start_turn()
         self._turn_started = True
-        
+
         player = self._game.current_player
         return ActionResponse(
             result=ActionResult.SUCCESS,
-            message=f"Tour de {player.name} commencé.",
-            data={"player": player.name, "dice": self._turn_manager.get_available_dice()}
+            message=f"{player.name}'s turn started.",
+            extra_data={"player": player.name, "dice": player.dice}
         )
 
     def end_turn(self) -> ActionResponse:
@@ -295,7 +298,7 @@ class GameController:
             return ActionResponse(
                 result=ActionResult.SUCCESS,
                 message="Manche terminée. Appelez start_round() pour la prochaine manche.",
-                data={"round_over": True}
+                extra_data={"round_over": True}  # Fixed: was 'data='
             )
         
         # Passer au joueur suivant
@@ -304,22 +307,8 @@ class GameController:
         return ActionResponse(
             result=ActionResult.SUCCESS,
             message=f"Tour terminé. Au tour de {self._game.current_player.name}.",
-            data={"round_over": False, "next_player": self._game.current_player.name}
+            extra_data={"round_over": False, "next_player": self._game.current_player.name}  # Fixed: was 'data='
         )
-
-    def get_game_state(self) -> dict:
-        """Retourne l'état complet du jeu."""
-        return {
-            "current_phase": self._game.board.current_phase,
-            "current_round": self._game.board.round_in_phase,
-            "current_player": self._game.current_player.name,
-            "round_started": self._round_started,
-            "turn_started": self._turn_started,
-            "is_game_over": self._game.is_game_over(),
-            "goods_depots": {
-                i: len(depot) for i, depot in enumerate(self._game.board.goods_depots)
-            },
-        }
     
     def force_end_turn(self) -> ActionResponse:
         """
@@ -515,20 +504,11 @@ class GameController:
             die_value = action.params.get("die_value", 0)
             workers_cost = action.cost.get("workers", 0)
             
-            # Spend workers if needed
-            if workers_cost > 0:
-                player.spend_workers(workers_cost)
-            
-            # Place the tile
-            # on utilise un dico vide qui sera remplie par _apply_castle_effect
+            # Place the tile (action_place_tile_from_storage handles die usage and workers)
             ctx = extra_context.copy()
             result = self._game.action_place_tile_from_storage(
-                storage_index, coord, self._game.global_round, ctx
+                storage_index, coord, self._game.global_round, die_value, workers_cost, ctx
             )
-            
-            # Use the die
-            if die_value in player.dice:
-                player.use_die(die_value)
             
             # un chateau donne un extra action
             if ctx.get("castle_bonus_action_available"):
