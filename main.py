@@ -2,7 +2,7 @@
 import pygame
 import time
 
-from Game1 import Game
+from game import Game
 from board import TileType, Tile, PlayerBoard
 from render_hex import draw_player_board, draw_storage, pixel_to_axial
 from render_central import (
@@ -359,7 +359,7 @@ while running:
                         reset_player_view_state()
                     else:
                         try:
-                            # ⚠️ Ton Game1 actuel attend (storage_index, coord, die_value)
+                            #  Game1 actuel attend (storage_index, coord, die_value)
                             # mais ton UI passe (round, ctx). Donc on appelle directement le board:
                             tile = player.remove_hex_from_storage(selected_storage_index)
                             player.board.place_tile(tile, coord, current_round=getattr(game, "round", 1), player=player)
