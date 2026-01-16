@@ -14,19 +14,19 @@ def axial_to_pixel(q, r, origin):
     y = HEX_SIZE * (1.5 * r) + oy
     return (x, y)
 
-def hex_corners(center):
+def hex_corners(center,size):
     """Retourne les 6 sommets d'un hexagone"""
     cx, cy = center
     corners = []
     for i in range(6):
         angle = math.radians(60 * i - 30)  # pointy-top
-        x = cx + HEX_SIZE * math.cos(angle)
-        y = cy + HEX_SIZE * math.sin(angle)
+        x = cx + size * math.cos(angle)
+        y = cy + size * math.sin(angle)
         corners.append((x, y))
     return corners
 
-def draw_hex(surface, center, fill_color):
-    points = hex_corners(center)
+def draw_hex(surface, center, fill_color,size):
+    points = hex_corners(center,size)
     pygame.draw.polygon(surface, fill_color, points)
     pygame.draw.polygon(surface, BORDER_COLOR, points, 2)
 
@@ -35,7 +35,7 @@ def draw_player_board(surface, player_board, origin, selected_hex=None, legal_co
         center = axial_to_pixel(q, r, origin)
         color = TILE_COLORS.get(slot.allowed_type, EMPTY_COLOR)
 
-        draw_hex(surface, center, color)
+        draw_hex(surface, center, color, HEX_SIZE)
         if legal_coords and (q, r) in legal_coords:
             pygame.draw.circle(surface, (0, 255, 0), center, 8)
 
