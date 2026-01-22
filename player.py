@@ -28,7 +28,8 @@ class Player:
     step_position: int = 1
     layout_id: int = 1
     board: "PlayerBoard" = field(init=False)
-
+    is_active: bool = False
+    has_rolled: bool = False
     silverlings: int = 0
     workers: int = 0
     victory_points: int = 0

@@ -1,83 +1,166 @@
 # ui/render_hex.py
 import math
 import pygame
+import os
+
 from colors import TILE_COLORS, EMPTY_COLOR, BORDER_COLOR
+from board import TileType  # important pour tester BUILDING/ANIMAL/...
 
-
-HEX_SIZE = 40  # rayon d'un hexagone
+HEX_SIZE = 40
 SQRT3 = math.sqrt(3)
 
+IMAGE_CACHE = {}
+
+def _find_image_path(base_name: str):
+    """Cherche images/<base_name>.(png|jpg|jpeg)"""
+    for ext in (".png", ".jpg", ".jpeg"):
+        path = os.path.join("images", base_name + ext)
+        if os.path.exists(path):
+            return path
+    return None
+
+def get_tile_image(tile_or_type):
+    """
+    Accepte:
+    - un Tile (avec .tile_type + .tile)
+    - ou un TileType (fallback)
+    Retourne une surface pygame ou None.
+    """
+    if tile_or_type is None:
+        return None
+
+    base_name = None
+
+    # --- Cas 1 : objet Tile complet ---
+    if hasattr(tile_or_type, "tile_type"):
+        t = tile_or_type
+        ttype = t.tile_type
+
+        # BUILDING -> nom du building_type: bank, church, city-hall, ...
+        if ttype == TileType.BUILDING and hasattr(t, "tile") and hasattr(t.tile, "building_type"):
+            base_name = str(t.tile.building_type.name).lower().replace("_", "-")
+
+        # ANIMAL -> ex: 2cattle, 3pigs ...
+        elif ttype == TileType.ANIMAL and hasattr(t, "tile") and hasattr(t.tile, "animal_type"):
+            count = getattr(t.tile, "count", 1)
+            atype = str(t.tile.animal_type.name).lower()
+            base_name = f"{count}{atype}"
+
+        # SHIP/MINE -> fichiers ship.png / mine.png
+        elif ttype == TileType.SHIP:
+            base_name = "ship"
+        elif ttype == TileType.MINE:
+            base_name = "mine"
+
+        # CASTLE / KNOWLEDGE / autres -> castle, knowledge, ...
+        else:
+            base_name = str(ttype.name).lower()
+
+    # --- Cas 2 : juste un TileType ---
+    elif hasattr(tile_or_type, "name"):
+        base_name = str(tile_or_type.name).lower()
+
+    else:
+        base_name = str(tile_or_type).lower()
+
+    if base_name in IMAGE_CACHE:
+        return IMAGE_CACHE[base_name]
+
+    path = _find_image_path(base_name)
+    if not path:
+        IMAGE_CACHE[base_name] = None
+        return None
+
+    # png => alpha
+    if path.lower().endswith(".png"):
+        img = pygame.image.load(path).convert_alpha()
+    else:
+        img = pygame.image.load(path).convert()
+
+    IMAGE_CACHE[base_name] = img
+    return img
+
+
 def axial_to_pixel(q, r, origin):
-    """Convertit (q,r) -> (x,y)"""
     ox, oy = origin
     x = HEX_SIZE * (SQRT3 * q + (SQRT3 / 2) * r) + ox
     y = HEX_SIZE * (1.5 * r) + oy
     return (x, y)
 
-def hex_corners(center,size):
-    """Retourne les 6 sommets d'un hexagone"""
+def hex_corners(center, size):
     cx, cy = center
     corners = []
     for i in range(6):
-        angle = math.radians(60 * i - 30)  # pointy-top
+        angle = math.radians(60 * i - 30)
         x = cx + size * math.cos(angle)
         y = cy + size * math.sin(angle)
         corners.append((x, y))
     return corners
 
-def draw_hex(surface, center, fill_color,size):
-    points = hex_corners(center,size)
+def get_masked_hex_image(image, size):
+    surf_size = int(size * 2)
+    temp_surf = pygame.Surface((surf_size, surf_size), pygame.SRCALPHA)
+    temp_surf.fill((0, 0, 0, 0))
+
+    local_center = (size, size)
+    points = hex_corners(local_center, size)
+    pygame.draw.polygon(temp_surf, (255, 255, 255, 255), points)
+
+    img_scaled = pygame.transform.smoothscale(image, (surf_size, surf_size))
+
+    # IMPORTANT: pour garder la transparence correctement, on utilise BLEND_RGBA_MULT
+    # avec un masque déjà présent en alpha.
+    # Technique simple: on blit l'image puis on "coupe" via le masque alpha.
+    # -> On fait l’inverse: on crée un surf, on met l’image, puis on applique le masque alpha.
+    img_surf = pygame.Surface((surf_size, surf_size), pygame.SRCALPHA)
+    img_surf.blit(img_scaled, (0, 0))
+    img_surf.blit(temp_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+
+    return img_surf
+
+def draw_hex(surface, center, fill_color, size, tile=None):
+    points = hex_corners(center, size)
+
+    # fond
     pygame.draw.polygon(surface, fill_color, points)
+
+    # image (si dispo)
+    img = get_tile_image(tile)
+    if img:
+        hex_img = get_masked_hex_image(img, size)
+        rect = hex_img.get_rect(center=center)
+        surface.blit(hex_img, rect)
+
+    # bordure
     pygame.draw.polygon(surface, BORDER_COLOR, points, 2)
 
-def draw_player_board(surface, player_board, origin, selected_hex=None, legal_coords=None):
+def draw_player_board(surface, player_board, origin, font_debug, selected_hex=None, legal_coords=None):
     for (q, r), slot in player_board.hex_map.grid.items():
         center = axial_to_pixel(q, r, origin)
-        color = TILE_COLORS.get(slot.allowed_type, EMPTY_COLOR)
+        base_color = TILE_COLORS.get(slot.allowed_type, EMPTY_COLOR)
 
-        draw_hex(surface, center, color, HEX_SIZE)
+        # --- Tuile / case ---
+        if slot.is_occupied:
+            draw_hex(surface, center, base_color, HEX_SIZE, slot.tile.tile_type)
+        else:
+            empty_fill = [max(0, c - 40) for c in base_color]
+            draw_hex(surface, center, empty_fill, HEX_SIZE)
+
+        # --- HIGHLIGHT COUPS LÉGAUX ---
         if legal_coords and (q, r) in legal_coords:
-            pygame.draw.circle(surface, (0, 255, 0), center, 8)
+            points = hex_corners(center, HEX_SIZE)
+            pygame.draw.polygon(surface, (0, 255, 0), points, 3)
 
-
+        # --- SÉLECTION ---
         if selected_hex == (q, r):
             pygame.draw.circle(surface, (255, 255, 0), center, 6)
 
-def cube_round(x, y, z):
-    rx, ry, rz = round(x), round(y), round(z)
-
-    dx = abs(rx - x)
-    dy = abs(ry - y)
-    dz = abs(rz - z)
-
-    if dx > dy and dx > dz:
-        rx = -ry - rz
-    elif dy > dz:
-        ry = -rx - rz
-    else:
-        rz = -rx - ry
-
-    return rx, ry, rz
-
-
-def pixel_to_axial(px, py, origin):
-    ox, oy = origin
-    x = (px - ox) / HEX_SIZE
-    y = (py - oy) / HEX_SIZE
-
-    # inverse pointy-top
-    q = (SQRT3 / 3) * x - (1 / 3) * y
-    r = (2 / 3) * y
-
-    # axial → cube
-    cx = q
-    cz = r
-    cy = -cx - cz
-
-    rx, ry, rz = cube_round(cx, cy, cz)
-
-    # cube → axial
-    return (rx, rz)
+     # DEBUG : afficher coordonnées et valeur du slot
+   # --- AFFICHAGE DE LA VALEUR DE DÉ DE LA CASE ---
+        if font_debug and slot.dice_value is not None:
+            label = font_debug.render(str(slot.dice_value), True, (255, 255, 255))
+            label_rect = label.get_rect(center=(center[0], center[1] + 14))
+            surface.blit(label, label_rect)
 def draw_storage(surface, storage, selected_index, origin):
     x0, y0 = origin
     SLOT_SIZE = 50
@@ -88,16 +171,38 @@ def draw_storage(surface, storage, selected_index, origin):
         y = y0
         rect = pygame.Rect(x, y, SLOT_SIZE, SLOT_SIZE)
 
-        # fond
-        pygame.draw.rect(surface, (80, 80, 80), rect, border_radius=8)
+        pygame.draw.rect(surface, (60, 60, 60), rect, border_radius=8)
         pygame.draw.rect(surface, (30, 30, 30), rect, 2, border_radius=8)
 
-        # sélection
         if selected_index == i:
             pygame.draw.rect(surface, (255, 255, 0), rect, 3, border_radius=8)
 
-        # tuile (SEULEMENT si elle existe)
         if i < len(storage):
             tile = storage[i]
             if tile is not None:
-                pygame.draw.circle(surface, (200, 200, 200), rect.center, 18)
+                img = get_tile_image(tile)
+                if img:
+                    hex_img = get_masked_hex_image(img, (SLOT_SIZE - 10) // 2)
+                    surface.blit(hex_img, hex_img.get_rect(center=rect.center))
+                else:
+                    pygame.draw.circle(surface, (200, 200, 200), rect.center, 18)
+
+def cube_round(x, y, z):
+    rx, ry, rz = round(x), round(y), round(z)
+    dx, dy, dz = abs(rx - x), abs(ry - y), abs(rz - z)
+    if dx > dy and dx > dz:
+        rx = -ry - rz
+    elif dy > dz:
+        ry = -rx - rz
+    else:
+        rz = -rx - ry
+    return rx, ry, rz
+
+def pixel_to_axial(px, py, origin):
+    ox, oy = origin
+    x = (px - ox) / HEX_SIZE
+    y = (py - oy) / HEX_SIZE
+    q = (SQRT3 / 3) * x - (1 / 3) * y
+    r = (2 / 3) * y
+    rx, ry, rz = cube_round(q, -q - r, r)
+    return (rx, rz)
