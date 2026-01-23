@@ -444,6 +444,7 @@ class Board:
             (AnimalType.PIG, 2), (AnimalType.PIG, 3), (AnimalType.PIG, 4),
             (AnimalType.CATTLE, 2), (AnimalType.CATTLE, 3), (AnimalType.CATTLE, 4),
             (AnimalType.CHICKEN, 2), (AnimalType.CHICKEN, 3), (AnimalType.CHICKEN, 4),
+            (AnimalType.GOAT, 2), (AnimalType.GOAT, 3), (AnimalType.GOAT, 4),
         ]
         for atype, count in animal_configs:
             tile = Tile(TileType.ANIMAL)
@@ -502,6 +503,7 @@ class Board:
             (AnimalType.PIG, 2), (AnimalType.PIG, 3),
             (AnimalType.CATTLE, 2), (AnimalType.CATTLE, 3),
             (AnimalType.CHICKEN, 2), (AnimalType.CHICKEN, 3),
+            (AnimalType.GOAT, 2),
         ]
         for atype, count in animal_configs:
             tile = Tile(TileType.ANIMAL, is_black=True)
