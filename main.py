@@ -562,7 +562,6 @@ while running:
 
     if current_view == VIEW_CENTRAL:
         draw_central_board(screen, game.board, (80, 80), (mx, my), selected_central_tile)
-        draw_steps(screen, game.players, (200, 450))
 
         for i, rect in enumerate(PLAYER_BUTTONS):
             draw_button(screen, rect, f"Joueur {i+1}", FONT_SMALL, active=(i == viewed_player_index))
