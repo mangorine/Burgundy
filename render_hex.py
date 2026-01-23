@@ -3,8 +3,8 @@ import math
 import pygame
 import os
 
-from colors import TILE_COLORS, EMPTY_COLOR, BORDER_COLOR
-from board import TileType  # important pour tester BUILDING/ANIMAL/...
+from colors import TILE_COLORS, EMPTY_COLOR, BORDER_COLOR, GOODS_COLORS
+from board import TileType, GoodsColor  # important pour tester BUILDING/ANIMAL/...
 
 HEX_SIZE = 40
 SQRT3 = math.sqrt(3)
@@ -25,6 +25,33 @@ GENERIC_TILE_IMAGES = {
     TileType.CASTLE: "cloister-castle",
     TileType.KNOWLEDGE: "cloister-knowledge",
 }
+
+# Cache pour les images de marchandises
+GOODS_IMAGE_CACHE = {}
+
+def get_goods_image(goods_color: GoodsColor):
+    """
+    Charge et retourne l'image de la marchandise correspondant à la couleur.
+    Les images sont dans images/goods/goodsN.jpg où N = 1-6
+    """
+    if goods_color in GOODS_IMAGE_CACHE:
+        return GOODS_IMAGE_CACHE[goods_color]
+    
+    # Le numéro correspond à la valeur de l'enum (COLOR_1 = 1, etc.)
+    color_num = goods_color.value
+    filename = f"goods{color_num}.jpg"
+    filepath = os.path.join("images", "goods", filename)
+    
+    if os.path.exists(filepath):
+        try:
+            img = pygame.image.load(filepath).convert()
+            GOODS_IMAGE_CACHE[goods_color] = img
+            return img
+        except Exception:
+            pass
+    
+    GOODS_IMAGE_CACHE[goods_color] = None
+    return None
 
 def _find_image_path(base_name: str):
     """Cherche <base_name>.(png|jpg|jpeg) dans les dossiers d'images connus."""
@@ -244,3 +271,69 @@ def pixel_to_axial(px, py, origin):
     r = (2 / 3) * y
     rx, ry, rz = cube_round(q, -q - r, r)
     return (rx, rz)
+
+
+def draw_goods_storage(surface, goods_list, origin, font=None):
+    """
+    Affiche les marchandises du joueur, groupées par couleur.
+    Utilise les images de images/goods/goodsN.jpg
+    Max 3 couleurs différentes (règle du jeu).
+    """
+    x0, y0 = origin
+    GOODS_SIZE = 28
+    GAP_X = 35  # Espace entre les colonnes de couleurs
+    GAP_Y = 4   # Espace vertical entre les carrés de même couleur
+    
+    # Grouper les marchandises par couleur
+    goods_by_color = {}
+    for g in goods_list:
+        color = g.color
+        if color not in goods_by_color:
+            goods_by_color[color] = []
+        goods_by_color[color].append(g)
+    
+    # Titre
+    if font:
+        title = font.render("MARCHANDISES", True, (200, 200, 200))
+        surface.blit(title, (x0, y0 - 22))
+    
+    # Fond de la zone
+    num_colors = max(len(goods_by_color), 3)  # Au moins 3 colonnes
+    total_width = num_colors * GAP_X + 10
+    max_stack = max([len(v) for v in goods_by_color.values()]) if goods_by_color else 1
+    total_height = max_stack * (GOODS_SIZE + GAP_Y) + 10
+    
+    bg_rect = pygame.Rect(x0 - 5, y0, total_width, total_height)
+    pygame.draw.rect(surface, (40, 35, 30), bg_rect, border_radius=8)
+    pygame.draw.rect(surface, (80, 70, 60), bg_rect, 2, border_radius=8)
+    
+    # Dessiner chaque colonne de marchandises
+    col = 0
+    for color_enum, goods in goods_by_color.items():
+        # Charger l'image de la marchandise
+        goods_img = get_goods_image(color_enum)
+        fallback_color = GOODS_COLORS.get(color_enum, (150, 150, 150))
+        
+        for i, g in enumerate(goods):
+            gx = x0 + col * GAP_X + 5
+            gy = y0 + 5 + i * (GOODS_SIZE + GAP_Y)
+            
+            rect = pygame.Rect(gx, gy, GOODS_SIZE, GOODS_SIZE)
+            
+            if goods_img:
+                # Redimensionner et afficher l'image
+                img_scaled = pygame.transform.smoothscale(goods_img, (GOODS_SIZE, GOODS_SIZE))
+                surface.blit(img_scaled, (gx, gy))
+                pygame.draw.rect(surface, (255, 255, 255), rect, 1, border_radius=4)
+            else:
+                # Fallback: carré coloré
+                pygame.draw.rect(surface, fallback_color, rect, border_radius=4)
+                pygame.draw.rect(surface, (255, 255, 255), rect, 1, border_radius=4)
+        
+        col += 1
+    
+    # Si pas de marchandises, afficher "(vide)"
+    if not goods_by_color:
+        if font:
+            empty_txt = font.render("(vide)", True, (100, 100, 100))
+            surface.blit(empty_txt, (x0 + 10, y0 + 15))

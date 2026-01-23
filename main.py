@@ -1,10 +1,11 @@
 # ui/main.py
 import pygame
 import time
+import random
 
 from game import Game
-from board import TileType, Tile, PlayerBoard, GoodsColor
-from render_hex import draw_player_board, draw_storage, pixel_to_axial
+from board import TileType, Tile, PlayerBoard, GoodsColor, GoodsTile
+from render_hex import draw_player_board, draw_storage, draw_goods_storage, pixel_to_axial
 from render_central import (
     draw_central_board,
     draw_bridge,
@@ -77,7 +78,9 @@ HUD_RECT = pygame.Rect(WIDTH - 320, HEIGHT - 260, 300, 240)
 ROLL_BTN = pygame.Rect(HUD_RECT.x + 20, HUD_RECT.y + 190, 120, 35)
 ENDTURN_BTN = pygame.Rect(HUD_RECT.x + 160, HUD_RECT.y + 190, 120, 35)
 WORKER_ACTION_BTN = pygame.Rect(HUD_RECT.x + 20, HUD_RECT.y + 90, 120, 30)
-SELL_ACTION_BTN = pygame.Rect(HUD_RECT.x + 160, HUD_RECT.y + 90, 120, 30)
+
+# Bouton Vendre sur le plateau joueur (près des marchandises)
+SELL_BTN_PLAYER = pygame.Rect(50, HEIGHT - 70, 120, 35)
 
 TOAST_RECT = pygame.Rect(20, 20, 520, 46)
 toast_message = ""
@@ -106,6 +109,25 @@ def replenish_black_depot():
         else:
             break
     print(f"[UI] Black depot replenished with {len(board.black_depot)} tiles")
+
+
+def add_random_goods_to_depot():
+    """
+    Place une marchandise aléatoire sur un dépôt aléatoire (1-6).
+    Appelé au début de chaque round.
+    Les marchandises existantes ne sont pas effacées, on ajoute par dessus.
+    """
+    board = game.board
+    # Choisir un dépôt aléatoire (1-6)
+    depot_id = random.randint(1, 6)
+    # Choisir une couleur aléatoire
+    random_color = random.choice(list(GoodsColor))
+    # Créer et ajouter la marchandise
+    new_goods = GoodsTile(random_color)
+    if depot_id not in board.depot_goods:
+        board.depot_goods[depot_id] = []
+    board.depot_goods[depot_id].append(new_goods)
+    print(f"[UI] Marchandise ajoutée au dépôt {depot_id}")
 
 
 def reset_player_view_state():
@@ -156,6 +178,11 @@ def end_turn():
     # Vérifier si on commence une nouvelle phase (round 6, 11, 16, 21)
     # Chaque phase dure 5 rounds: A=1-5, B=6-10, C=11-15, D=16-20, E=21-25
     new_round = game.global_round
+    
+    # Si nouveau round, ajouter une marchandise aléatoire sur un dépôt
+    if new_round != old_round:
+        add_random_goods_to_depot()
+    
     if new_round != old_round and new_round in (6, 11, 16, 21):
         replenish_black_depot()
         phase_letter = chr(65 + ((new_round - 1) // 5))
@@ -282,6 +309,42 @@ def try_take_workers_action():
         p.use_die(die_val)
         clear_dice_ui()
         toast("+2 Ouvriers")
+    except Exception as e:
+        toast(str(e))
+
+
+def try_sell_goods():
+    """
+    Vendre des marchandises. Consomme un dé et vend TOUTES les marchandises
+    d'une même couleur correspondant à la valeur du dé (ou ajustée par ouvriers).
+    Chaque marchandise vendue donne 1 silverling (ou 2 avec tuile jaune 3).
+    """
+    p = turn_player()
+    die_val = get_selected_die(p)
+    if die_val is None:
+        toast("Sélectionne un dé pour vendre")
+        return
+    
+    if not p.goods_storage:
+        toast("Pas de marchandises à vendre")
+        return
+    
+    # Trouver les couleurs disponibles
+    colors_available = p.get_goods_colors_stored()
+    if not colors_available:
+        toast("Pas de marchandises à vendre")
+        return
+    
+    # Vendre la première couleur disponible (simplifie l'UI)
+    # Dans une version avancée, on pourrait demander au joueur de choisir
+    color_to_sell = list(colors_available)[0]
+    
+    try:
+        sold_count = p.sell_goods_of_color(color_to_sell)
+        p.use_die(die_val)
+        clear_dice_ui()
+        silverlings = p.get_silverlings_per_good_sold() * sold_count
+        toast(f"Vendu {sold_count} marchandise(s) → +{silverlings} silverlings !")
     except Exception as e:
         toast(str(e))
 
@@ -489,13 +552,13 @@ while running:
                 toast(f"Layout {selected_layout_id}", 1.0)
 
             if event.key == pygame.K_RETURN:
-                game = Game(["Alice", "Bob", "Clément", "Diane"])
+                game = Game(["Alice", "Bob", "Clément", "Diane"])#players name
                 for i, p in enumerate(game.players):
                     # init board/layout
                     p.layout_id = selected_layout_id
                     p.__post_init__()  # ta logique existante
 
-                    # ✅ évite l'erreur render_central.py: p.color
+                    # évite l'erreur render_central.py: p.color
                     p.color = PLAYER_COLORS[i]
                     p.is_active = (i == 0)
 
@@ -503,10 +566,19 @@ while running:
                     p.silverlings = 2
                     p.workers = 1 + i
                     p.dice = []
+                    
+                    # Donner 3 marchandises aléatoires au début
+                    all_colors = list(GoodsColor)
+                    for _ in range(3):
+                        random_color = random.choice(all_colors)
+                        p.goods_storage.append(GoodsTile(random_color))
 
                     # si ton code dépend de step_position
                     if not hasattr(p, "step_position"):
                         p.step_position = 1
+
+                # Ajouter une marchandise aléatoire sur un dépôt pour le round 1
+                add_random_goods_to_depot()
 
                 mode = MODE_GAME
                 current_view = VIEW_CENTRAL
@@ -549,7 +621,7 @@ while running:
             # (C) HUD boutons
             if HUD_RECT.collidepoint(mx, my):
                 if ROLL_BTN.collidepoint(mx, my):
-                    # ✅ pas de roll en vue player (comme tu veux)
+                    # pas de roll en vue player (comme tu veux)
                     if current_view != VIEW_CENTRAL:
                         toast("Roll uniquement sur le plateau central")
                     else:
@@ -563,7 +635,6 @@ while running:
                     end_turn()
                 elif WORKER_ACTION_BTN.collidepoint(mx, my):
                     try_take_workers_action()
-                # SELL_ACTION_BTN: à implémenter si tu veux
                 continue
 
             # (D) vue centrale : switch vers un player board
@@ -621,7 +692,19 @@ while running:
 
                 p_view = viewed_player()
 
-                # 1) clic sur storage => sélection tuile + calc legal coords
+                # 1) clic sur le bouton Vendre (priorité haute)
+                if SELL_BTN_PLAYER.collidepoint(mx, my):
+                    try_sell_goods()
+                    continue
+
+                # 2) clic sur la zone des marchandises (ignorer, pas d'action directe)
+                # Les marchandises sont à (50, HEIGHT - 180) avec une taille variable
+                goods_zone = pygame.Rect(45, HEIGHT - 185, 120, 80)
+                if goods_zone.collidepoint(mx, my):
+                    # Clic sur les marchandises - ne rien faire (utiliser le bouton Vendre)
+                    continue
+
+                # 3) clic sur storage => sélection tuile + calc legal coords
                 storage_origin = (WIDTH // 2 - 90, HEIGHT - 120)
                 clicked_storage = False
                 for i in range(3):
@@ -640,7 +723,7 @@ while running:
                 if clicked_storage:
                     continue
 
-                # 2) clic sur une case => tentative placement (si dé + storage déjà choisis)
+                # 4) clic sur une case => tentative placement (si dé + storage déjà choisis)
                 clicked_coord = pixel_to_axial(mx, my, BOARD_ORIGIN)
                 try_place_tile_on_board(clicked_coord)
                 continue
@@ -717,6 +800,13 @@ while running:
             draw_player_board(screen, p_v.board, BOARD_ORIGIN, hovered, legal_coords)
 
         draw_storage(screen, p_v.hex_storage, selected_storage_index, (WIDTH // 2 - 90, HEIGHT - 120))
+        
+        # Afficher les marchandises du joueur
+        draw_goods_storage(screen, p_v.goods_storage, (50, HEIGHT - 180), FONT_SMALL)
+        
+        # Bouton Vendre (sur le plateau joueur, près des marchandises)
+        draw_button(screen, SELL_BTN_PLAYER, "Vendre", FONT_SMALL)
+        
         draw_button(screen, BACK_BUTTON, "← Central", FONT_SMALL)
 
     # HUD (toujours visible)
@@ -729,7 +819,6 @@ while running:
     )
 
     draw_button(screen, WORKER_ACTION_BTN, "+2 Ouvriers", FONT_SMALL)
-    draw_button(screen, SELL_ACTION_BTN, "Vendre", FONT_SMALL)
 
     # Dés cliquables + highlight par INDEX (plus de bug si deux dés ont même valeur)
     DIE_RECTS.clear()

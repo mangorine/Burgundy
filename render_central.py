@@ -1,6 +1,6 @@
 # ui/render_central.py
 import pygame
-from render_hex import draw_hex
+from render_hex import draw_hex, get_goods_image
 from board import TileType
 from colors import TILE_COLORS, BORDER_COLOR, GOODS_COLORS
 
@@ -11,7 +11,7 @@ DEPOT_WIDTH = 140
 DEPOT_HEIGHT = 140
 DEPOT_GAP = 18
 
-GOODS_BOX_HEIGHT = 50  # Hauteur des boîtes de marchandises
+GOODS_BOX_HEIGHT = 70  # Hauteur des boîtes de marchandises (agrandie)
 GOODS_BOX_GAP = 8      # Espace entre dépôt tuiles et dépôt marchandises
 
 HEX_SIZE = 20        # Taille des tuiles sur le plateau central
@@ -118,23 +118,41 @@ def draw_central_board(screen, board, origin, mouse_pos=None, selected_tile=None
         pygame.draw.rect(screen, (40, 35, 30), goods_rect, border_radius=8)
         pygame.draw.rect(screen, (100, 90, 80), goods_rect, 2, border_radius=8)
         
-        # Dessiner les marchandises dans cette boîte
+        # Dessiner les marchandises dans cette boîte avec images
         goods = board.depot_goods.get(depot_id, [])
-        goods_size = 18
-        goods_gap = 6
-        total_goods_width = len(goods) * goods_size + (len(goods) - 1) * goods_gap if goods else 0
-        goods_start_x = x + (DEPOT_WIDTH - total_goods_width) // 2
+        goods_size = 32  # Taille plus grande pour les images
+        goods_gap = 4
+        max_per_row = 4  # Maximum de marchandises par ligne
         
-        for gi, g in enumerate(goods[:6]):  # Max 6 marchandises affichées
-            gx = goods_start_x + gi * (goods_size + goods_gap)
-            gy = goods_y + (GOODS_BOX_HEIGHT - goods_size) // 2
-            goods_color = GOODS_COLORS.get(g.color, (150, 150, 150))
-            pygame.draw.rect(screen, goods_color, (gx, gy, goods_size, goods_size), border_radius=3)
-            pygame.draw.rect(screen, (255, 255, 255), (gx, gy, goods_size, goods_size), 1, border_radius=3)
+        for gi, g in enumerate(goods[:8]):  # Max 8 marchandises affichées (2 lignes)
+            row = gi // max_per_row
+            col = gi % max_per_row
+            
+            # Calculer la position centrée
+            row_goods = min(len(goods) - row * max_per_row, max_per_row)
+            if row == 0:
+                row_goods = min(len(goods), max_per_row)
+            total_row_width = row_goods * goods_size + (row_goods - 1) * goods_gap
+            row_start_x = x + (DEPOT_WIDTH - total_row_width) // 2
+            
+            gx = row_start_x + col * (goods_size + goods_gap)
+            gy = goods_y + 5 + row * (goods_size + 2)
+            
+            # Charger et afficher l'image de la marchandise
+            goods_img = get_goods_image(g.color)
+            if goods_img:
+                img_scaled = pygame.transform.smoothscale(goods_img, (goods_size, goods_size))
+                screen.blit(img_scaled, (gx, gy))
+                pygame.draw.rect(screen, (255, 255, 255), (gx, gy, goods_size, goods_size), 1, border_radius=3)
+            else:
+                # Fallback: carré coloré
+                goods_color = GOODS_COLORS.get(g.color, (150, 150, 150))
+                pygame.draw.rect(screen, goods_color, (gx, gy, goods_size, goods_size), border_radius=3)
+                pygame.draw.rect(screen, (255, 255, 255), (gx, gy, goods_size, goods_size), 1, border_radius=3)
         
         # Si pas de marchandises, afficher un placeholder
         if not goods:
-            empty_txt = pygame.font.SysFont(None, 16).render("(vide)", True, (80, 80, 80))
+            empty_txt = pygame.font.SysFont(None, 18).render("(vide)", True, (80, 80, 80))
             screen.blit(empty_txt, (x + (DEPOT_WIDTH - empty_txt.get_width()) // 2, goods_y + (GOODS_BOX_HEIGHT - empty_txt.get_height()) // 2))
 
     # ===============================
