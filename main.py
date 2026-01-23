@@ -3,17 +3,19 @@ import pygame
 import time
 
 from game import Game
-from board import TileType, Tile, PlayerBoard
+from board import TileType, Tile, PlayerBoard, GoodsColor
 from render_hex import draw_player_board, draw_storage, pixel_to_axial
 from render_central import (
     draw_central_board,
     draw_steps,
     draw_bridge,
     DEPOT_HEXES,
+    DEPOT_RECTS,
+    GOODS_RECTS,
     BLACK_DEPOT_RECT,
     DEPOT_HEIGHT,
 )
-from colors import BACKGROUND_COLOR
+from colors import BACKGROUND_COLOR, GOODS_COLORS
 from render_ui import draw_button, draw_panel, draw_die, draw_toast
 
 # ===============================
@@ -63,8 +65,8 @@ selected_storage_index = None
 legal_coords = set()
 BOARD_ORIGIN = (WIDTH // 2, HEIGHT // 2)
 
-# État pour le placement de bateau (ship) - nécessite choix du dépôt
-pending_ship_placement = None  # Dict avec: storage_index, coord, die_val, wk_needed
+# Pour le placement de bateau (choix du dépôt de marchandises)
+pending_ship_placement = None  # {"storage_index", "coord", "die_val", "wk_needed"}
 
 # ===============================
 # UI
@@ -108,10 +110,11 @@ def replenish_black_depot():
 
 
 def reset_player_view_state():
-    global selected_storage_index, selected_central_tile, legal_coords
+    global selected_storage_index, selected_central_tile, legal_coords, pending_ship_placement
     selected_storage_index = None
     selected_central_tile = None
     legal_coords = set()
+    pending_ship_placement = None
 
 def turn_player():
     return game.players[game.current_player_index]
@@ -206,6 +209,36 @@ def try_take_from_depot(depot_id: int, tile_index: int):
         toast(f"Tuile prise (dépôt {depot_id})")
     except Exception as e:
         toast(str(e))
+
+def complete_ship_placement_with_goods(depot_id: int):
+    """Finalise le placement d'un bateau en prenant les marchandises du dépôt choisi."""
+    global pending_ship_placement
+    
+    if pending_ship_placement is None:
+        return False
+    
+    info = pending_ship_placement
+    pending_ship_placement = None
+    
+    # Compter les marchandises AVANT de les prendre
+    goods_count = len(game.board.depot_goods.get(depot_id, []))
+    
+    try:
+        game.action_place_tile_from_storage(
+            info["storage_index"],
+            info["coord"],
+            game.global_round,
+            info["die_val"],
+            info["wk_needed"],
+            extra_context={"goods_depot_choice": depot_id}
+        )
+        toast(f"Bateau placé ✔ + {goods_count} marchandise(s) du dépôt {depot_id}")
+        reset_player_view_state()
+        clear_dice_ui()
+        return True
+    except Exception as e:
+        toast(str(e))
+        return False
 
 def try_buy_black(tile_index: int = 0):
     """
@@ -311,9 +344,7 @@ def try_place_tile_on_board(clicked_coord):
     2) cliquer tuile stockage
     3) cliquer case
     => si ok : place + consomme dé + workers nécessaires
-    
-    Pour les bateaux (SHIP): après le clic sur la case, on passe en mode
-    sélection de dépôt pour les marchandises.
+    => si c'est un bateau : demande de choisir un dépôt pour les marchandises
     """
     global selected_storage_index, legal_coords, pending_ship_placement, current_view
 
@@ -363,19 +394,21 @@ def try_place_tile_on_board(clicked_coord):
         toast("Placement illégal")
         return
 
-    # Si c'est un bateau, on doit d'abord choisir le dépôt pour les marchandises
+    # Vérifier si c'est un bateau - si oui, demander de choisir un dépôt
     if tile_to_place.tile_type == TileType.SHIP:
+        # Sauvegarder les infos du placement en attente
         pending_ship_placement = {
             "storage_index": selected_storage_index,
             "coord": clicked_coord,
             "die_val": die_val,
             "wk_needed": wk_needed
         }
-        current_view = VIEW_CENTRAL  # Retour au plateau central pour choisir le dépôt
-        toast("Bateau: choisis un dépôt pour prendre les marchandises")
+        # Aller sur la vue centrale pour choisir un dépôt
+        current_view = VIEW_CENTRAL
+        toast("Bateau: Clique sur un dépôt pour prendre les marchandises")
         return
 
-    # Pour les autres tuiles, placement direct
+    # Placement normal (pas un bateau)
     try:
         game.action_place_tile_from_storage(
             selected_storage_index,
@@ -554,6 +587,20 @@ while running:
                         reset_player_view_state()
                         break
 
+                # Si on attend le choix d'un dépôt pour un bateau, vérifier le clic sur GOODS_RECTS ou DEPOT_RECTS
+                if pending_ship_placement is not None:
+                    for depot_id, rect in GOODS_RECTS.items():
+                        if rect.collidepoint(mx, my):
+                            complete_ship_placement_with_goods(depot_id)
+                            break
+                    else:
+                        # Aussi accepter le clic sur le dépôt de tuiles
+                        for depot_id, rect in DEPOT_RECTS.items():
+                            if rect.collidepoint(mx, my):
+                                complete_ship_placement_with_goods(depot_id)
+                                break
+                    continue
+
                 # clic tuile dépôt (exacte)
                 handled = False
                 for (depot_id, idx), data in DEPOT_HEXES.items():
@@ -648,9 +695,16 @@ while running:
 
     if current_view == VIEW_CENTRAL:
         draw_central_board(screen, game.board, (80, 80), (mx, my), selected_central_tile)
-        
-        # Afficher le pont (ordre de jeu)
-        draw_bridge(screen, game.players, (80, 380), game.current_player_index)
+
+        # Si on attend le choix d'un dépôt pour un bateau, surligner les boîtes de marchandises
+        if pending_ship_placement is not None:
+            for depot_id, rect in GOODS_RECTS.items():
+                pygame.draw.rect(screen, (0, 255, 255), rect, 3, border_radius=8)
+            # Afficher un message
+            hint_txt = FONT.render("Clique sur une boîte de marchandises pour les prendre", True, (0, 255, 255))
+            screen.blit(hint_txt, (80, 50))
+
+        draw_steps(screen, game.players, (200, 310))
 
         for i, rect in enumerate(PLAYER_BUTTONS):
             draw_button(screen, rect, f"Joueur {i+1}", FONT_SMALL, active=(i == viewed_player_index))

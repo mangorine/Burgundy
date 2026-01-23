@@ -2,7 +2,7 @@
 import pygame
 from render_hex import draw_hex
 from board import TileType
-from colors import TILE_COLORS, BORDER_COLOR
+from colors import TILE_COLORS, BORDER_COLOR, GOODS_COLORS
 
 # ===============================
 # CONSTANTES VISUELLES
@@ -10,6 +10,9 @@ from colors import TILE_COLORS, BORDER_COLOR
 DEPOT_WIDTH = 140
 DEPOT_HEIGHT = 140
 DEPOT_GAP = 18
+
+GOODS_BOX_HEIGHT = 50  # Hauteur des boîtes de marchandises
+GOODS_BOX_GAP = 8      # Espace entre dépôt tuiles et dépôt marchandises
 
 HEX_SIZE = 20        # Taille des tuiles sur le plateau central
 HEX_GAP = 12         # Espace entre les tuiles dans les dépôts
@@ -22,6 +25,7 @@ STEP_RECTS={}
 # ===============================
 DEPOT_RECTS = {}
 DEPOT_HEXES = {}
+GOODS_RECTS = {}     # Rectangles cliquables pour les marchandises
 BLACK_DEPOT_RECT = None
 
 def draw_central_board(screen, board, origin, mouse_pos=None, selected_tile=None):
@@ -31,10 +35,11 @@ def draw_central_board(screen, board, origin, mouse_pos=None, selected_tile=None
     - Gère le dépôt noir.
     - Met à jour les dictionnaires de collision pour les clics.
     """
-    global DEPOT_RECTS, DEPOT_HEXES, BLACK_DEPOT_RECT
+    global DEPOT_RECTS, DEPOT_HEXES, GOODS_RECTS, BLACK_DEPOT_RECT
 
     DEPOT_RECTS.clear()
     DEPOT_HEXES.clear()
+    GOODS_RECTS.clear()
 
     ox, oy = origin
     font = pygame.font.SysFont(None, 24)
@@ -98,6 +103,39 @@ def draw_central_board(screen, board, origin, mouse_pos=None, selected_tile=None
                 "rect": rect,
                 "tile": tile,
             }
+
+    # ===============================
+    # BOÎTES DE MARCHANDISES (séparées, sous les dépôts de tuiles)
+    # ===============================
+    for depot_id in range(1, 7):
+        x = ox + (depot_id - 1) * (DEPOT_WIDTH + DEPOT_GAP)
+        goods_y = oy + DEPOT_HEIGHT + GOODS_BOX_GAP
+        
+        goods_rect = pygame.Rect(x, goods_y, DEPOT_WIDTH, GOODS_BOX_HEIGHT)
+        GOODS_RECTS[depot_id] = goods_rect
+        
+        # Fond de la boîte de marchandises
+        pygame.draw.rect(screen, (40, 35, 30), goods_rect, border_radius=8)
+        pygame.draw.rect(screen, (100, 90, 80), goods_rect, 2, border_radius=8)
+        
+        # Dessiner les marchandises dans cette boîte
+        goods = board.depot_goods.get(depot_id, [])
+        goods_size = 18
+        goods_gap = 6
+        total_goods_width = len(goods) * goods_size + (len(goods) - 1) * goods_gap if goods else 0
+        goods_start_x = x + (DEPOT_WIDTH - total_goods_width) // 2
+        
+        for gi, g in enumerate(goods[:6]):  # Max 6 marchandises affichées
+            gx = goods_start_x + gi * (goods_size + goods_gap)
+            gy = goods_y + (GOODS_BOX_HEIGHT - goods_size) // 2
+            goods_color = GOODS_COLORS.get(g.color, (150, 150, 150))
+            pygame.draw.rect(screen, goods_color, (gx, gy, goods_size, goods_size), border_radius=3)
+            pygame.draw.rect(screen, (255, 255, 255), (gx, gy, goods_size, goods_size), 1, border_radius=3)
+        
+        # Si pas de marchandises, afficher un placeholder
+        if not goods:
+            empty_txt = pygame.font.SysFont(None, 16).render("(vide)", True, (80, 80, 80))
+            screen.blit(empty_txt, (x + (DEPOT_WIDTH - empty_txt.get_width()) // 2, goods_y + (GOODS_BOX_HEIGHT - empty_txt.get_height()) // 2))
 
     # ===============================
     # DÉPÔT NOIR (8 tuiles avec dos noir: 2 colonnes x 4 rangées)
