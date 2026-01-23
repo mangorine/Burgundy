@@ -7,7 +7,6 @@ from board import TileType, Tile, PlayerBoard, GoodsColor
 from render_hex import draw_player_board, draw_storage, pixel_to_axial
 from render_central import (
     draw_central_board,
-    draw_steps,
     draw_bridge,
     DEPOT_HEXES,
     DEPOT_RECTS,
@@ -571,12 +570,22 @@ while running:
             if current_view == VIEW_CENTRAL:
                 # Si on est en mode sélection de dépôt pour un bateau
                 if pending_ship_placement:
-                    # Clic sur un dépôt numéroté (1-6) pour prendre les marchandises
-                    for (depot_id, idx), data in DEPOT_HEXES.items():
-                        if data["rect"].collidepoint(mx, my) and depot_id >= 1:
-                            complete_ship_placement(depot_id)
+                    # Priorité : clic sur les boîtes de marchandises (GOODS_RECTS)
+                    handled = False
+                    for depot_id, rect in GOODS_RECTS.items():
+                        if rect.collidepoint(mx, my):
+                            complete_ship_placement_with_goods(depot_id)
                             handled = True
                             break
+                    
+                    # Sinon, accepter aussi le clic sur les dépôts de tuiles (DEPOT_RECTS)
+                    if not handled:
+                        for depot_id, rect in DEPOT_RECTS.items():
+                            if rect.collidepoint(mx, my):
+                                complete_ship_placement_with_goods(depot_id)
+                                handled = True
+                                break
+                    
                     # Clic ailleurs = annulation possible via BACK ou Fin Tour
                     continue
                 
@@ -586,20 +595,6 @@ while running:
                         current_view = VIEW_PLAYER
                         reset_player_view_state()
                         break
-
-                # Si on attend le choix d'un dépôt pour un bateau, vérifier le clic sur GOODS_RECTS ou DEPOT_RECTS
-                if pending_ship_placement is not None:
-                    for depot_id, rect in GOODS_RECTS.items():
-                        if rect.collidepoint(mx, my):
-                            complete_ship_placement_with_goods(depot_id)
-                            break
-                    else:
-                        # Aussi accepter le clic sur le dépôt de tuiles
-                        for depot_id, rect in DEPOT_RECTS.items():
-                            if rect.collidepoint(mx, my):
-                                complete_ship_placement_with_goods(depot_id)
-                                break
-                    continue
 
                 # clic tuile dépôt (exacte)
                 handled = False
@@ -704,7 +699,8 @@ while running:
             hint_txt = FONT.render("Clique sur une boîte de marchandises pour les prendre", True, (0, 255, 255))
             screen.blit(hint_txt, (80, 50))
 
-        draw_steps(screen, game.players, (200, 310))
+        # Pont (ordre de jeu)
+        draw_bridge(screen, game.players, (80, 320), game.current_player_index)
 
         for i, rect in enumerate(PLAYER_BUTTONS):
             draw_button(screen, rect, f"Joueur {i+1}", FONT_SMALL, active=(i == viewed_player_index))
