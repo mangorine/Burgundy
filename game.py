@@ -57,8 +57,12 @@ class Game:
     def next_player(self) -> None:
         """
         Passe au joueur suivant (ordre simple pour l'instant).
+        Incrémente global_round quand tous les joueurs ont joué.
         """
         self.current_player_index = (self.current_player_index + 1) % len(self.players)
+        # Si on revient au premier joueur, on incrémente le tour global
+        if self.current_player_index == 0:
+            self.global_round += 1
 
     # =============================
     # Actions principales du jeu
