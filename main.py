@@ -621,7 +621,6 @@ while running:
 
     if current_view == VIEW_CENTRAL:
         draw_central_board(screen, game.board, (80, 80), (mx, my), selected_central_tile)
-        draw_steps(screen, game.players, (200, 450))
 
         # Si on attend le choix d'un dépôt pour un bateau, surligner les dépôts
         if pending_ship_placement is not None:
