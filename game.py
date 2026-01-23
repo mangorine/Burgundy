@@ -125,12 +125,29 @@ class Game:
         
         # Calculer la valeur effective du dé après ajustement avec les ouvriers
         slot = player.board.hex_map.get_slot(coord)
+        if slot is None:
+            raise ValueError(f"Coordonnée {coord} invalide.")
         target_value = slot.dice_value
         tile_type = slot.allowed_type
         
         # Vérifier si le joueur a un ajustement gratuit (tuiles jaunes 9-11)
         has_free_adjustment = player.get_free_placement_die_adjustment(tile_type)
         
+        # Calculer la valeur effective du dé
+        effective_die_value = target_value if (has_free_adjustment or workers_to_spend > 0) else die_value
+        
+        # 1) VALIDATION: Récupérer la tuile SANS la retirer pour vérifier le placement
+        if storage_index < 0 or storage_index >= len(player.hex_storage):
+            raise ValueError(f"Index de stockage {storage_index} invalide.")
+        tile = player.hex_storage[storage_index]
+        if tile is None:
+            raise ValueError(f"Pas de tuile à l'index {storage_index}.")
+        
+        # 2) VALIDATION: Vérifier que le placement est légal AVANT de consommer des ressources
+        if not player.board.can_place_tile_at(tile, coord, player, effective_die_value):
+            raise ValueError(f"Placement illégal à {coord} pour la tuile {tile}.")
+        
+        # 3) Maintenant que tout est validé, on consomme les ressources
         if die_value != target_value and not has_free_adjustment:
             # Il faut des ouvriers pour ajuster
             if workers_to_spend <= 0:
@@ -140,11 +157,10 @@ class Game:
         # Utiliser le dé
         player.use_die(die_value)
 
-        # 1) On récupère la tuile à poser
+        # 4) Retirer la tuile du stockage
         tile = player.remove_hex_from_storage(storage_index)
 
-        # 2) On la pose sur le PlayerBoard (on passe target_value car c'est la valeur effective après ajustement)
-        effective_die_value = target_value if (has_free_adjustment or workers_to_spend > 0) else die_value
+        # 5) Placer la tuile sur le PlayerBoard (la validation est déjà faite)
         placement_result = player.board.place_tile(tile, coord, current_round, player, effective_die_value)
 
         # 3) On applique les effets selon le type de tuile
