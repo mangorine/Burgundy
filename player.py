@@ -49,8 +49,11 @@ class Player:
     # Track bonus tiles claimed
     bonus_tiles: List[str] = field(default_factory=list)
 
-    # Pour éventuellement gérer l’ordre du tour / piste de navigation
-    turn_order_position: int = 0
+    # Pour gérer l'ordre du tour sur le pont (bridge)
+    # turn_order_position: case sur le pont (1 = départ, 0 = plus avancé)
+    # bridge_stack_priority: ordre dans la pile (plus grand = en haut = joue en premier si même case)
+    turn_order_position: int = 1
+    bridge_stack_priority: int = 0
 
     # Dés pour les actions
     dice: List[int] = field(default_factory=list)
@@ -131,9 +134,44 @@ class Player:
     # Marchandises
     # =============================
 
+    def get_goods_colors_stored(self) -> Set["GoodsColor"]:
+        """
+        Retourne l'ensemble des couleurs de marchandises actuellement stockées.
+        """
+        return {g.color for g in self.goods_storage}
+
+    def can_store_goods_color(self, color: "GoodsColor") -> bool:
+        """
+        Vérifie si le joueur peut stocker une marchandise de cette couleur.
+        Max 3 couleurs différentes. Si déjà cette couleur, on peut empiler.
+        """
+        current_colors = self.get_goods_colors_stored()
+        if color in current_colors:
+            return True  # On peut toujours empiler une couleur existante
+        return len(current_colors) < 3  # Max 3 couleurs différentes
+
+    def add_goods_with_limit(self, goods: List["GoodsTile"]) -> List["GoodsTile"]:
+        """
+        Ajoute des marchandises à la réserve du joueur avec la règle des 3 couleurs max.
+        Retourne la liste des marchandises qui n'ont pas pu être stockées.
+        
+        Rules:
+        - Max 3 different colors can be stored
+        - Same colors are stacked (unlimited)
+        - If a color can't be stored, the tile remains (returned)
+        """
+        not_stored = []
+        for good in goods:
+            if self.can_store_goods_color(good.color):
+                self.goods_storage.append(good)
+            else:
+                not_stored.append(good)
+        return not_stored
+
     def add_goods(self, goods: List["GoodsTile"]) -> None:
         """
         Ajoute des marchandises à la réserve du joueur.
+        Note: Use add_goods_with_limit for proper rule enforcement.
         """
         self.goods_storage.extend(goods)
 

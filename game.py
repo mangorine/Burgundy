@@ -36,6 +36,18 @@ class Game:
         self.players: List[Player] = [
             Player(name=player_names[i], layout_id=1) for i in range(len(player_names))
         ]
+        
+        # Initialiser les positions sur le pont (bridge)
+        # Tous les joueurs commencent sur la case 1, empilés
+        # Le premier joueur est en haut de la pile (priorité max), le dernier en bas
+        # Plus bridge_stack_priority est grand, plus le joueur est en haut (joue en premier si même case)
+        num_players = len(self.players)
+        for i, player in enumerate(self.players):
+            player.turn_order_position = 1  # Tous sur la case 1
+            player.bridge_stack_priority = num_players - i  # Premier joueur = priorité max
+        
+        # Compteur pour les mouvements sur le pont (pour déterminer qui arrive en dernier)
+        self._bridge_move_counter = num_players + 1
 
         # Index du joueur courant dans la liste players
         self.current_player_index: int = 0
@@ -424,22 +436,49 @@ class Game:
         ctx: Dict[str, Any],
     ) -> None:
         """
-        Effets classiques d'un bateau dans BoB (version simplifiée) :
-        - Avancer sur la piste de tour (ordre du tour)
-        - Prendre toutes les marchandises d'un dépôt
-
-        Ici :
-        - on augmente turn_order_position de 1
-        - on prend les marchandises du dépôt choisi dans ctx["goods_depot_choice"]
+        Effets d'un bateau (Ship - blue tile) :
+        1. Prendre toutes les marchandises d'un dépôt au choix (pas lié au dé utilisé)
+           - Max 3 couleurs différentes stockables, même couleur empilée
+           - Si une couleur ne peut pas être stockée, la tuile reste dans le dépôt
+        2. Avancer sur le pont (bridge) d'une case vers le centre
+        
+        ctx["goods_depot_choice"] : id du dépôt choisi (1-6)
         """
-        # 1) Avancer sur la piste (simplifié)
-        player.turn_order_position += 1
-
-        # 2) Prendre les marchandises d'un dépôt choisi
+        # 1) Prendre les marchandises d'un dépôt choisi
         depot_id = ctx.get("goods_depot_choice")
         if depot_id is not None:
             goods = self.board.take_all_goods_from_depot(depot_id)
-            player.add_goods(goods)
+            # Appliquer la règle des 3 couleurs max
+            not_stored = player.add_goods_with_limit(goods)
+            # Remettre les tuiles non stockées dans le dépôt
+            for good in not_stored:
+                self.board.depot_goods[depot_id].append(good)
+
+        # 2) Avancer sur le pont (bridge) - vers une position plus basse = plus proche du centre
+        # Plus la position est basse, plus le joueur joue tôt au prochain round
+        self._advance_on_bridge(player)
+
+    def _advance_on_bridge(self, player: Player) -> None:
+        """
+        Avance le joueur d'une case sur le pont (1 → 2 → 3 → 4).
+        Position plus haute = joue en premier.
+        Si la case cible est occupée, le joueur se place AU-DESSUS de la pile.
+        """
+        # Avancer d'une case (augmenter la position, max 4)
+        if player.turn_order_position < 4:
+            player.turn_order_position += 1
+        
+        # Le joueur qui vient d'arriver se place en haut de la pile
+        player.bridge_stack_priority = self._bridge_move_counter
+        self._bridge_move_counter += 1
+
+    def get_turn_order(self) -> List[Player]:
+        """
+        Retourne les joueurs dans l'ordre du tour basé sur leur position sur le pont.
+        - Position plus haute = plus avancé = joue en premier
+        - En cas d'égalité de position, priorité plus haute = en haut de la pile = joue en premier
+        """
+        return sorted(self.players, key=lambda p: (-p.turn_order_position, -p.bridge_stack_priority))
 
     # ---------- YELLOW TILES / KNOWLEDGE ----------
 

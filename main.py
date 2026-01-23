@@ -8,6 +8,7 @@ from render_hex import draw_player_board, draw_storage, pixel_to_axial
 from render_central import (
     draw_central_board,
     draw_steps,
+    draw_bridge,
     DEPOT_HEXES,
     BLACK_DEPOT_RECT,
     DEPOT_HEIGHT,
@@ -61,6 +62,9 @@ game = None
 selected_storage_index = None
 legal_coords = set()
 BOARD_ORIGIN = (WIDTH // 2, HEIGHT // 2)
+
+# État pour le placement de bateau (ship) - nécessite choix du dépôt
+pending_ship_placement = None  # Dict avec: storage_index, coord, die_val, wk_needed
 
 # ===============================
 # UI
@@ -307,8 +311,11 @@ def try_place_tile_on_board(clicked_coord):
     2) cliquer tuile stockage
     3) cliquer case
     => si ok : place + consomme dé + workers nécessaires
+    
+    Pour les bateaux (SHIP): après le clic sur la case, on passe en mode
+    sélection de dépôt pour les marchandises.
     """
-    global selected_storage_index, legal_coords
+    global selected_storage_index, legal_coords, pending_ship_placement, current_view
 
     p_turn = turn_player()
     p_view = viewed_player()
@@ -356,6 +363,19 @@ def try_place_tile_on_board(clicked_coord):
         toast("Placement illégal")
         return
 
+    # Si c'est un bateau, on doit d'abord choisir le dépôt pour les marchandises
+    if tile_to_place.tile_type == TileType.SHIP:
+        pending_ship_placement = {
+            "storage_index": selected_storage_index,
+            "coord": clicked_coord,
+            "die_val": die_val,
+            "wk_needed": wk_needed
+        }
+        current_view = VIEW_CENTRAL  # Retour au plateau central pour choisir le dépôt
+        toast("Bateau: choisis un dépôt pour prendre les marchandises")
+        return
+
+    # Pour les autres tuiles, placement direct
     try:
         game.action_place_tile_from_storage(
             selected_storage_index,
@@ -369,6 +389,53 @@ def try_place_tile_on_board(clicked_coord):
         clear_dice_ui()
     except Exception as e:
         toast(str(e))
+
+
+def complete_ship_placement(depot_id: int):
+    """
+    Finalise le placement d'un bateau après sélection du dépôt pour les marchandises.
+    """
+    global pending_ship_placement, current_view
+    
+    if pending_ship_placement is None:
+        return
+    
+    storage_index = pending_ship_placement["storage_index"]
+    coord = pending_ship_placement["coord"]
+    die_val = pending_ship_placement["die_val"]
+    wk_needed = pending_ship_placement["wk_needed"]
+    
+    try:
+        game.action_place_tile_from_storage(
+            storage_index,
+            coord,
+            game.global_round,
+            die_val,
+            wk_needed,
+            extra_context={"goods_depot_choice": depot_id}
+        )
+        
+        p = turn_player()
+        goods_taken = len([g for g in p.goods_storage])  # Simplified
+        toast(f"Bateau placé ! Marchandises du dépôt {depot_id} récupérées.")
+        
+        pending_ship_placement = None
+        reset_player_view_state()
+        clear_dice_ui()
+        current_view = VIEW_PLAYER
+        
+    except Exception as e:
+        toast(str(e))
+        pending_ship_placement = None
+
+
+def cancel_ship_placement():
+    """Annule le placement de bateau en cours."""
+    global pending_ship_placement, current_view
+    pending_ship_placement = None
+    current_view = VIEW_PLAYER
+    toast("Placement de bateau annulé")
+
 
 # ===============================
 # MAIN LOOP
@@ -459,6 +526,8 @@ while running:
                         reset_player_view_state()
                         toast(f"Dés: {p_turn.dice}", 1.5)
                 elif ENDTURN_BTN.collidepoint(mx, my):
+                    if pending_ship_placement:
+                        cancel_ship_placement()
                     end_turn()
                 elif WORKER_ACTION_BTN.collidepoint(mx, my):
                     try_take_workers_action()
@@ -467,6 +536,17 @@ while running:
 
             # (D) vue centrale : switch vers un player board
             if current_view == VIEW_CENTRAL:
+                # Si on est en mode sélection de dépôt pour un bateau
+                if pending_ship_placement:
+                    # Clic sur un dépôt numéroté (1-6) pour prendre les marchandises
+                    for (depot_id, idx), data in DEPOT_HEXES.items():
+                        if data["rect"].collidepoint(mx, my) and depot_id >= 1:
+                            complete_ship_placement(depot_id)
+                            handled = True
+                            break
+                    # Clic ailleurs = annulation possible via BACK ou Fin Tour
+                    continue
+                
                 for i, rect in enumerate(PLAYER_BUTTONS):
                     if rect.collidepoint(mx, my):
                         viewed_player_index = i
@@ -560,8 +640,17 @@ while running:
     tour = ((game.global_round - 1) % 5) + 1
     screen.blit(FONT.render(f"PHASE {phase} - TOUR {tour}/5", True, (255, 255, 255)), (WIDTH // 2 - 110, 20))
 
+    # Afficher indication si en mode sélection de dépôt pour bateau
+    if pending_ship_placement:
+        ship_msg = "BATEAU: Clique sur un dépôt (1-6) pour prendre les marchandises"
+        ship_txt = FONT.render(ship_msg, True, (100, 190, 210))
+        screen.blit(ship_txt, (WIDTH // 2 - ship_txt.get_width() // 2, 55))
+
     if current_view == VIEW_CENTRAL:
         draw_central_board(screen, game.board, (80, 80), (mx, my), selected_central_tile)
+        
+        # Afficher le pont (ordre de jeu)
+        draw_bridge(screen, game.players, (80, 380), game.current_player_index)
 
         for i, rect in enumerate(PLAYER_BUTTONS):
             draw_button(screen, rect, f"Joueur {i+1}", FONT_SMALL, active=(i == viewed_player_index))
