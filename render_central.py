@@ -2,7 +2,7 @@
 import pygame
 from render_hex import draw_hex
 from board import TileType
-from colors import TILE_COLORS, BORDER_COLOR
+from colors import TILE_COLORS, BORDER_COLOR, GOODS_COLORS
 
 # ===============================
 # CONSTANTES VISUELLES
@@ -98,6 +98,17 @@ def draw_central_board(screen, board, origin, mouse_pos=None, selected_tile=None
                 "rect": rect,
                 "tile": tile,
             }
+
+        # --- DESSIN DES MARCHANDISES (en bas du dépôt) ---
+        goods = board.depot_goods.get(depot_id, [])
+        goods_size = 12
+        goods_start_x = x + 15
+        goods_y = y + DEPOT_HEIGHT - 25
+        for gi, g in enumerate(goods[:6]):  # Max 6 marchandises affichées
+            gx = goods_start_x + gi * (goods_size + 4)
+            goods_color = GOODS_COLORS.get(g.color, (150, 150, 150))
+            pygame.draw.rect(screen, goods_color, (gx, goods_y, goods_size, goods_size), border_radius=2)
+            pygame.draw.rect(screen, (255, 255, 255), (gx, goods_y, goods_size, goods_size), 1, border_radius=2)
 
     # ===============================
     # DÉPÔT NOIR (8 tuiles avec dos noir: 2 colonnes x 4 rangées)
