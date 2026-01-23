@@ -3,10 +3,10 @@ from typing import Optional, Dict, List, Tuple, Set, TYPE_CHECKING
 import random
 from animals import Animal, AnimalType
 from buildings import Building, BuildingType
+from yellow_tiles_list import YELLOW_TILE_DEFINITIONS
 
 if TYPE_CHECKING:
     from player import Player
-    from yellow_tiles_list import YELLOW_TILE_DEFINITIONS
 
 class TileType(Enum):
     CASTLE = "castle"
@@ -424,12 +424,56 @@ class Board:
         Complexité : O(N) pour N tuiles construites.
         """
         supply: List[Tile] = []
-        supply.extend(Tile(TileType.BUILDING) for _ in range(40))
-        supply.extend(Tile(TileType.ANIMAL) for _ in range(20))
-        supply.extend(Tile(TileType.KNOWLEDGE) for _ in range(20))
+
+        # Buildings: 40 tiles (4 copies of each building type, plus extras)
+        building_types = list(BuildingType)
+        for btype in building_types:
+            for _ in range(4):  # 4 copies of each
+                tile = Tile(TileType.BUILDING)
+                tile.tile = Building(btype)
+                supply.append(tile)
+        # Add extra buildings to reach 40 (40 - 8*4 = 8 more)
+        for i in range(4):
+            tile = Tile(TileType.BUILDING)
+            tile.tile = Building(building_types[i % len(building_types)])
+            supply.append(tile)
+
+        # Animals: 20 tiles with various counts (2-4 animals per tile)
+        animal_configs = [
+            (AnimalType.SHEEP, 2), (AnimalType.SHEEP, 3), (AnimalType.SHEEP, 4),
+            (AnimalType.PIG, 2), (AnimalType.PIG, 3), (AnimalType.PIG, 4),
+            (AnimalType.CATTLE, 2), (AnimalType.CATTLE, 3), (AnimalType.CATTLE, 4),
+            (AnimalType.CHICKEN, 2), (AnimalType.CHICKEN, 3), (AnimalType.CHICKEN, 4),
+        ]
+        for atype, count in animal_configs:
+            tile = Tile(TileType.ANIMAL)
+            tile.tile = Animal(atype, count)
+            supply.append(tile)
+        # Fill remaining to reach 20
+        remaining_animals = 20 - len(animal_configs)
+        for i in range(remaining_animals):
+            atype, count = animal_configs[i % len(animal_configs)]
+            tile = Tile(TileType.ANIMAL)
+            tile.tile = Animal(atype, count)
+            supply.append(tile)
+
+        # Knowledge: 20 tiles (use available tile definitions)
+        knowledge_ids = list(YELLOW_TILE_DEFINITIONS.keys())
+        for i in range(20):
+            tile = Tile(TileType.KNOWLEDGE)
+            tile_id = knowledge_ids[i % len(knowledge_ids)]
+            tile.tile = YELLOW_TILE_DEFINITIONS[tile_id]
+            supply.append(tile)
+
+        # Castles: 14 tiles (no special data needed)
         supply.extend(Tile(TileType.CASTLE) for _ in range(14))
+
+        # Mines: 10 tiles (no special data needed)
         supply.extend(Tile(TileType.MINE) for _ in range(10))
+
+        # Ships: 20 tiles (no special data needed)
         supply.extend(Tile(TileType.SHIP) for _ in range(20))
+
         self._rng.shuffle(supply)
         return supply
 
@@ -444,12 +488,43 @@ class Board:
         Complexité : O(N).
         """
         supply: List[Tile] = []
-        supply.extend(Tile(TileType.BUILDING, is_black=True) for _ in range(16))
-        supply.extend(Tile(TileType.ANIMAL, is_black=True) for _ in range(8))
-        supply.extend(Tile(TileType.KNOWLEDGE, is_black=True) for _ in range(6))
+
+        # Black Buildings: 16 tiles
+        building_types = list(BuildingType)
+        for i in range(16):
+            tile = Tile(TileType.BUILDING, is_black=True)
+            tile.tile = Building(building_types[i % len(building_types)])
+            supply.append(tile)
+
+        # Black Animals: 8 tiles
+        animal_configs = [
+            (AnimalType.SHEEP, 2), (AnimalType.SHEEP, 3),
+            (AnimalType.PIG, 2), (AnimalType.PIG, 3),
+            (AnimalType.CATTLE, 2), (AnimalType.CATTLE, 3),
+            (AnimalType.CHICKEN, 2), (AnimalType.CHICKEN, 3),
+        ]
+        for atype, count in animal_configs:
+            tile = Tile(TileType.ANIMAL, is_black=True)
+            tile.tile = Animal(atype, count)
+            supply.append(tile)
+
+        # Black Knowledge: 6 tiles
+        knowledge_ids = list(YELLOW_TILE_DEFINITIONS.keys())
+        for i in range(6):
+            tile = Tile(TileType.KNOWLEDGE, is_black=True)
+            tile_id = knowledge_ids[i % len(knowledge_ids)]
+            tile.tile = YELLOW_TILE_DEFINITIONS[tile_id]
+            supply.append(tile)
+
+        # Black Castles: 2 tiles
         supply.extend(Tile(TileType.CASTLE, is_black=True) for _ in range(2))
+
+        # Black Mines: 2 tiles
         supply.extend(Tile(TileType.MINE, is_black=True) for _ in range(2))
+
+        # Black Ships: 6 tiles
         supply.extend(Tile(TileType.SHIP, is_black=True) for _ in range(6))
+
         self._rng.shuffle(supply)
         return supply
 
