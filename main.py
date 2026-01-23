@@ -43,6 +43,7 @@ PLAYER_COLORS = [
 # ===============================
 MODE_MENU = "menu"
 MODE_GAME = "game"
+MODE_GAME_OVER = "game_over"
 VIEW_CENTRAL = "central"
 VIEW_PLAYER = "player"
 
@@ -119,8 +120,16 @@ def get_selected_die(player):
     return player.dice[selected_die_idx]
 
 def end_turn():
-    global viewed_player_index
+    global viewed_player_index, mode
     game.next_player()
+    
+    # Vérifier si la partie est terminée (fin de Phase E = round 25)
+    # Phase E = rounds 21-25, donc après round 25, global_round devient 26
+    if game.global_round > 25:
+        mode = MODE_GAME_OVER
+        toast("Partie terminée !")
+        return
+    
     p = turn_player()
     p.dice = []  # force reroll
     clear_dice_ui()
@@ -502,9 +511,27 @@ while running:
         clock.tick(60)
         continue
 
+    if mode == MODE_GAME_OVER:
+        # Afficher l'écran de fin de partie
+        screen.blit(
+            FONT_BIG.render("PARTIE TERMINÉE !", True, (255, 215, 0)),
+            (WIDTH // 2 - 150, HEIGHT // 2 - 100),
+        )
+        # Afficher les scores
+        sorted_players = sorted(game.players, key=lambda p: p.victory_points, reverse=True)
+        for i, p in enumerate(sorted_players):
+            color = (255, 255, 0) if i == 0 else (255, 255, 255)
+            screen.blit(
+                FONT.render(f"{i+1}. {p.name}: {p.victory_points} points", True, color),
+                (WIDTH // 2 - 120, HEIGHT // 2 - 30 + i * 40),
+            )
+        pygame.display.flip()
+        clock.tick(60)
+        continue
+
     # MODE_GAME
-    phase = chr(65 + (game.global_round // 5))
-    tour = (game.global_round % 5) + 1
+    phase = chr(65 + ((game.global_round - 1) // 5))
+    tour = ((game.global_round - 1) % 5) + 1
     screen.blit(FONT.render(f"PHASE {phase} - TOUR {tour}/5", True, (255, 255, 255)), (WIDTH // 2 - 110, 20))
 
     if current_view == VIEW_CENTRAL:
