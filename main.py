@@ -90,6 +90,19 @@ def toast(msg, seconds=2.5):
     toast_until = time.time() + seconds
     print("[UI]", msg)
 
+
+def replenish_black_depot():
+    """Replenish the 8 spaces of the black depot with random hex tiles with black backs."""
+    board = game.board
+    board.black_depot.clear()
+    for _ in range(8):
+        if board._black_supply:
+            board.black_depot.append(board._black_supply.pop())
+        else:
+            break
+    print(f"[UI] Black depot replenished with {len(board.black_depot)} tiles")
+
+
 def reset_player_view_state():
     global selected_storage_index, selected_central_tile, legal_coords
     selected_storage_index = None
@@ -121,6 +134,10 @@ def get_selected_die(player):
 
 def end_turn():
     global viewed_player_index, mode
+    
+    # Sauvegarder le round actuel avant next_player pour détecter le changement de phase
+    old_round = game.global_round
+    
     game.next_player()
     
     # Vérifier si la partie est terminée (fin de Phase E = round 25)
@@ -129,6 +146,14 @@ def end_turn():
         mode = MODE_GAME_OVER
         toast("Partie terminée !")
         return
+    
+    # Vérifier si on commence une nouvelle phase (round 6, 11, 16, 21)
+    # Chaque phase dure 5 rounds: A=1-5, B=6-10, C=11-15, D=16-20, E=21-25
+    new_round = game.global_round
+    if new_round != old_round and new_round in (6, 11, 16, 21):
+        replenish_black_depot()
+        phase_letter = chr(65 + ((new_round - 1) // 5))
+        toast(f"Nouvelle phase {phase_letter} ! Dépôt noir réapprovisionné.")
     
     p = turn_player()
     p.dice = []  # force reroll
@@ -179,18 +204,21 @@ def try_take_from_depot(depot_id: int, tile_index: int):
         toast(str(e))
 
 def try_buy_black(tile_index: int = 0):
-    """Achat dépôt noir. On consomme un dé sélectionné + 2 silverlings."""
+    """
+    Achat dépôt noir. Coûte 2 silverlings, NE consomme PAS de dé.
+    Peut être fait à n'importe quel moment du tour, en plus des 2 actions de dé.
+    """
     p = turn_player()
-    die_val = get_selected_die(p)
-    if die_val is None:
-        toast("Sélectionne un dé d'abord !")
-        return
 
     if p.silverlings < 2:
-        toast("Pas assez d'argent !")
+        toast("Pas assez d'argent (2 silverlings requis) !")
         return
 
-    black = game.board.depots.get(0, [])
+    if not p.can_store_hex_tile():
+        toast("Stockage plein !")
+        return
+
+    black = game.board.black_depot
     if not black:
         toast("Dépôt noir vide")
         return
@@ -201,10 +229,8 @@ def try_buy_black(tile_index: int = 0):
         tile = black.pop(tile_index)
         p.silverlings -= 2
         p.add_hex_to_storage(tile)
-        p.use_die(die_val)
-
-        clear_dice_ui()
-        toast("Tuile noire achetée")
+        # PAS de p.use_die() - l'achat du dépôt noir ne consomme pas de dé
+        toast("Tuile noire achetée (2 silverlings)")
     except Exception as e:
         toast(str(e))
 

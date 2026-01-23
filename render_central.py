@@ -100,13 +100,15 @@ def draw_central_board(screen, board, origin, mouse_pos=None, selected_tile=None
             }
 
     # ===============================
-    # DÉPÔT NOIR
+    # DÉPÔT NOIR (8 tuiles avec dos noir: 2 colonnes x 4 rangées)
     # ===============================
     last_rect = DEPOT_RECTS[6]
     bx = last_rect.right + 25
     by = last_rect.top
 
-    BLACK_DEPOT_RECT = pygame.Rect(bx, by, DEPOT_WIDTH, DEPOT_HEIGHT)
+    # Height for 4 rows of hex tiles
+    black_depot_height = DEPOT_HEIGHT * 2
+    BLACK_DEPOT_RECT = pygame.Rect(bx, by, DEPOT_WIDTH, black_depot_height)
     black_hover = mouse_pos and BLACK_DEPOT_RECT.collidepoint(mouse_pos)
 
     # Fond noir avec bordure dorée
@@ -117,15 +119,15 @@ def draw_central_board(screen, board, origin, mouse_pos=None, selected_tile=None
     txt_noir = font.render("NOIR", True, (255, 215, 0))
     screen.blit(txt_noir, (bx + (DEPOT_WIDTH - txt_noir.get_width()) // 2, by + 10))
 
-    # Dessin des tuiles du dépôt noir (identifiant 0)
-    black_tiles = board.depots.get(0, [])
-    for i, tile in enumerate(black_tiles[:4]):
+    # Dessin des 8 tuiles du dépôt noir
+    black_tiles = board.black_depot
+    for i, tile in enumerate(black_tiles[:8]):
         col, row = i % 2, i // 2
         hx = (bx + (DEPOT_WIDTH - grid_w) // 2 + HEX_SIZE) + col * cell_step
         hy = (by + 48) + row * cell_step
-        
+
         draw_hex(screen, (hx, hy), TILE_COLORS.get(tile.tile_type), HEX_SIZE, tile=tile)
-        
+
         # Enregistrement pour clic sur dépôt noir
         rect_n = pygame.Rect(hx - HEX_SIZE, hy - HEX_SIZE, HEX_SIZE * 2, HEX_SIZE * 2)
         DEPOT_HEXES[(0, i)] = {"rect": rect_n, "tile": tile}
