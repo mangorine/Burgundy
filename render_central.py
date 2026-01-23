@@ -1,8 +1,7 @@
 # ui/render_central.py
 import pygame
-import os
 from render_hex import draw_hex
-from board import TileType, GoodsColor
+from board import TileType
 from colors import TILE_COLORS, BORDER_COLOR
 
 # ===============================
@@ -33,9 +32,6 @@ def draw_central_board(screen, board, origin, mouse_pos=None, selected_tile=None
     - Met à jour les dictionnaires de collision pour les clics.
     """
     global DEPOT_RECTS, DEPOT_HEXES, BLACK_DEPOT_RECT
-
-    # Load goods images if not already loaded
-    load_goods_images()
 
     DEPOT_RECTS.clear()
     DEPOT_HEXES.clear()
