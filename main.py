@@ -10,6 +10,7 @@ from render_central import (
     draw_steps,
     DEPOT_HEXES,
     DEPOT_RECTS,
+    GOODS_RECTS,
     BLACK_DEPOT_RECT,
     DEPOT_HEIGHT,
 )
@@ -525,12 +526,18 @@ while running:
                         reset_player_view_state()
                         break
 
-                # Si on attend le choix d'un dépôt pour un bateau, vérifier le clic sur DEPOT_RECTS
+                # Si on attend le choix d'un dépôt pour un bateau, vérifier le clic sur GOODS_RECTS ou DEPOT_RECTS
                 if pending_ship_placement is not None:
-                    for depot_id, rect in DEPOT_RECTS.items():
+                    for depot_id, rect in GOODS_RECTS.items():
                         if rect.collidepoint(mx, my):
                             complete_ship_placement_with_goods(depot_id)
                             break
+                    else:
+                        # Aussi accepter le clic sur le dépôt de tuiles
+                        for depot_id, rect in DEPOT_RECTS.items():
+                            if rect.collidepoint(mx, my):
+                                complete_ship_placement_with_goods(depot_id)
+                                break
                     continue
 
                 # clic tuile dépôt (exacte)
@@ -622,13 +629,15 @@ while running:
     if current_view == VIEW_CENTRAL:
         draw_central_board(screen, game.board, (80, 80), (mx, my), selected_central_tile)
 
-        # Si on attend le choix d'un dépôt pour un bateau, surligner les dépôts
+        # Si on attend le choix d'un dépôt pour un bateau, surligner les boîtes de marchandises
         if pending_ship_placement is not None:
-            for depot_id, rect in DEPOT_RECTS.items():
-                pygame.draw.rect(screen, (0, 255, 255), rect, 3, border_radius=12)
+            for depot_id, rect in GOODS_RECTS.items():
+                pygame.draw.rect(screen, (0, 255, 255), rect, 3, border_radius=8)
             # Afficher un message
-            hint_txt = FONT.render("Clique sur un dépôt pour prendre les marchandises", True, (0, 255, 255))
+            hint_txt = FONT.render("Clique sur une boîte de marchandises pour les prendre", True, (0, 255, 255))
             screen.blit(hint_txt, (80, 50))
+
+        draw_steps(screen, game.players, (200, 310))
 
         for i, rect in enumerate(PLAYER_BUTTONS):
             draw_button(screen, rect, f"Joueur {i+1}", FONT_SMALL, active=(i == viewed_player_index))
