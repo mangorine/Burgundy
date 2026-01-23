@@ -10,14 +10,38 @@ HEX_SIZE = 40
 SQRT3 = math.sqrt(3)
 
 IMAGE_CACHE = {}
+IMAGE_DIRS = (
+    "images",
+    os.path.join("images", "buildings"),
+    os.path.join("images", "animals"),
+    os.path.join("images", "knowledge"),
+    os.path.join("images", "goods"),
+)
+GENERIC_TILE_IMAGES = {
+    TileType.BUILDING: "cloister-building",
+    TileType.ANIMAL: "cloister-livestock",
+    TileType.SHIP: "cloister-ship",
+    TileType.MINE: "cloister-mine",
+    TileType.CASTLE: "cloister-castle",
+    TileType.KNOWLEDGE: "cloister-knowledge",
+}
 
 def _find_image_path(base_name: str):
-    """Cherche images/<base_name>.(png|jpg|jpeg)"""
-    for ext in (".png", ".jpg", ".jpeg"):
-        path = os.path.join("images", base_name + ext)
-        if os.path.exists(path):
-            return path
+    """Cherche <base_name>.(png|jpg|jpeg) dans les dossiers d'images connus."""
+    for directory in IMAGE_DIRS:
+        for ext in (".png", ".jpg", ".jpeg"):
+            path = os.path.join(directory, base_name + ext)
+            if os.path.exists(path):
+                return path
     return None
+
+def _normalize_name(raw_name: str) -> str:
+    return raw_name.lower().replace("'", "").replace(" ", "-")
+
+def _animal_image_name(animal_type: str) -> str:
+    if animal_type in {"pig", "chicken", "goat"}:
+        return f"{animal_type}s"
+    return animal_type
 
 def get_tile_image(tile_or_type):
     """
@@ -38,19 +62,22 @@ def get_tile_image(tile_or_type):
 
         # BUILDING -> nom du building_type: bank, church, city-hall, ...
         if ttype == TileType.BUILDING and hasattr(t, "tile") and hasattr(t.tile, "building_type"):
-            base_name = str(t.tile.building_type.name).lower().replace("_", "-")
+            raw_name = str(getattr(t.tile.building_type, "value", t.tile.building_type.name))
+            base_name = _normalize_name(raw_name)
 
         # ANIMAL -> ex: 2cattle, 3pigs ...
         elif ttype == TileType.ANIMAL and hasattr(t, "tile") and hasattr(t.tile, "animal_type"):
             count = getattr(t.tile, "count", 1)
             atype = str(t.tile.animal_type.name).lower()
-            base_name = f"{count}{atype}"
+            base_name = f"{count}{_animal_image_name(atype)}"
 
         # SHIP/MINE -> fichiers ship.png / mine.png
         elif ttype == TileType.SHIP:
             base_name = "ship"
         elif ttype == TileType.MINE:
             base_name = "mine"
+        elif ttype == TileType.KNOWLEDGE and hasattr(t, "tile") and hasattr(t.tile, "tile_id"):
+            base_name = f"knowledge{t.tile.tile_id}"
 
         # CASTLE / KNOWLEDGE / autres -> castle, knowledge, ...
         else:
@@ -68,8 +95,19 @@ def get_tile_image(tile_or_type):
 
     path = _find_image_path(base_name)
     if not path:
-        IMAGE_CACHE[base_name] = None
-        return None
+        ttype = None
+        if hasattr(tile_or_type, "tile_type"):
+            ttype = tile_or_type.tile_type
+        elif isinstance(tile_or_type, TileType):
+            ttype = tile_or_type
+
+        if ttype in GENERIC_TILE_IMAGES:
+            fallback_name = GENERIC_TILE_IMAGES[ttype]
+            path = _find_image_path(fallback_name)
+
+        if not path:
+            IMAGE_CACHE[base_name] = None
+            return None
 
     # png => alpha
     if path.lower().endswith(".png"):
@@ -141,7 +179,7 @@ def draw_player_board(surface, player_board, origin, font_debug, selected_hex=No
 
         # --- Tuile / case ---
         if slot.is_occupied:
-            draw_hex(surface, center, base_color, HEX_SIZE, slot.tile.tile_type)
+            draw_hex(surface, center, base_color, HEX_SIZE, slot.tile)
         else:
             empty_fill = [max(0, c - 40) for c in base_color]
             draw_hex(surface, center, empty_fill, HEX_SIZE)

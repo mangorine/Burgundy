@@ -244,26 +244,26 @@ def compute_legal_coords_for_storage_tile(player, storage_index):
 
 def can_place_with_selected_die(player, coord, die_val):
     """
-    Tente de valider le placement sans modifier l'état.
-    Supporte plusieurs signatures de can_use_die_for_placement.
+    Valide le placement AVEC le dé sélectionné.
     Retourne (ok, workers_needed).
     """
-    try:
-        res = player.can_use_die_for_placement(coord)
-        # cas possibles selon ta version :
-        # (ok, workers) ou (ok, die_needed, workers) ou (ok, _, workers)
-        if isinstance(res, tuple):
-            if len(res) == 2:
-                ok, wk = res
-                return bool(ok), int(wk)
-            if len(res) >= 3:
-                ok = res[0]
-                wk = res[-1]
-                return bool(ok), int(wk)
-        return bool(res), 0
-    except Exception:
-        # fallback minimal: autorise si coord dans legal_coords
+    slot = player.board.hex_map.get_slot(coord)
+    if slot is None:
+        return False, 0
+
+    target_value = slot.dice_value
+    tile_type = slot.allowed_type
+
+    if die_val == target_value:
         return True, 0
+
+    if player.get_free_placement_die_adjustment(tile_type):
+        return True, 0
+
+    try:
+        return player.can_reach_value_with_workers(target_value, die_val)
+    except Exception:
+        return False, 0
 
 def try_place_tile_on_board(clicked_coord):
     """
@@ -304,19 +304,31 @@ def try_place_tile_on_board(clicked_coord):
         toast(f"Besoin de {wk_needed} ouvriers")
         return
 
-    # ✅ IMPORTANT : on ne modifie workers/dé QUE si action_place réussit
+    tile_to_place = None
+    if 0 <= selected_storage_index < len(p_view.hex_storage):
+        tile_to_place = p_view.hex_storage[selected_storage_index]
+    if tile_to_place is None:
+        toast("Tuile invalide")
+        return
+
+    slot = p_view.board.hex_map.get_slot(clicked_coord)
+    if slot is None:
+        toast("Case non valide")
+        return
+
+    effective_die_value = slot.dice_value if (wk_needed > 0 or p_view.get_free_placement_die_adjustment(slot.allowed_type)) else die_val
+    if not p_view.board.can_place_tile_at(tile_to_place, clicked_coord, p_view, effective_die_value):
+        toast("Placement illégal")
+        return
+
     try:
         game.action_place_tile_from_storage(
             selected_storage_index,
             clicked_coord,
             game.global_round,
             die_val,
-            0
+            wk_needed
         )
-        # Si on arrive ici => placement validé
-        p_view.workers -= wk_needed
-        p_view.use_die(die_val)
-
         toast("Tuile placée ✔")
         reset_player_view_state()
         clear_dice_ui()
