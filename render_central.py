@@ -1,6 +1,7 @@
 import pygame
+import os
 from render_hex import draw_hex
-from board import TileType
+from board import TileType, GoodsColor
 
 # ===============================
 # CONSTANTES VISUELLES
@@ -13,6 +14,7 @@ STEP_GAP = 20
 STEP_RECTS = {}   # { (player_index, step): Rect }
 
 HEX_SIZE = 14
+GOODS_SIZE = 24  # Size of goods images
 
 TILE_COLORS = {
     TileType.CASTLE: (200, 200, 200),
@@ -22,6 +24,29 @@ TILE_COLORS = {
     TileType.ANIMAL: (120, 200, 120),
     TileType.KNOWLEDGE: (170, 120, 200),
 }
+
+# ===============================
+# CHARGEMENT DES IMAGES DE MARCHANDISES
+# ===============================
+GOODS_IMAGES = {}
+
+def load_goods_images():
+    """Load goods images from the images/goods folder."""
+    global GOODS_IMAGES
+    if GOODS_IMAGES:  # Already loaded
+        return
+    
+    base_path = os.path.dirname(os.path.abspath(__file__))
+    goods_path = os.path.join(base_path, "images", "goods")
+    
+    for i in range(1, 7):
+        img_file = os.path.join(goods_path, f"goods{i}.jpg")
+        if os.path.exists(img_file):
+            img = pygame.image.load(img_file)
+            img = pygame.transform.scale(img, (GOODS_SIZE, GOODS_SIZE))
+            GOODS_IMAGES[GoodsColor(i)] = img
+        else:
+            print(f"Warning: goods image not found: {img_file}")
 
 # ===============================
 # ZONES CLIQUABLES (exportées)
@@ -36,10 +61,14 @@ def draw_central_board(screen, board, origin, mouse_pos=None, selected_tile=None
     Dessine le plateau central :
     - dépôts 1 à 6
     - tuiles hexagonales dans chaque dépôt
+    - marchandises (goods) sous chaque dépôt
     - dépôt noir
     Met à jour les zones cliquables.
     """
     global DEPOT_RECTS, DEPOT_HEXES, BLACK_DEPOT_RECT
+
+    # Load goods images if not already loaded
+    load_goods_images()
 
     DEPOT_RECTS.clear()
     DEPOT_HEXES.clear()
@@ -113,6 +142,36 @@ def draw_central_board(screen, board, origin, mouse_pos=None, selected_tile=None
                 "rect": rect,
                 "tile": tile,
             }
+
+        # ===============================
+        # MARCHANDISES (GOODS) SOUS LE DEPOT
+        # ===============================
+        if hasattr(board, 'depot_goods') and depot_id in board.depot_goods:
+            goods_list = board.depot_goods[depot_id]
+            goods_y = y + DEPOT_HEIGHT + 5  # Position below the depot
+            
+            for gi, goods_tile in enumerate(goods_list):
+                goods_x = x + 10 + gi * (GOODS_SIZE + 4)
+                
+                # Draw the goods image if available
+                if goods_tile.color in GOODS_IMAGES:
+                    screen.blit(GOODS_IMAGES[goods_tile.color], (goods_x, goods_y))
+                else:
+                    # Fallback: draw a colored square
+                    color_value = goods_tile.color.value
+                    fallback_colors = {
+                        1: (200, 100, 100),  # Red-ish
+                        2: (100, 200, 100),  # Green-ish
+                        3: (100, 100, 200),  # Blue-ish
+                        4: (200, 200, 100),  # Yellow-ish
+                        5: (200, 100, 200),  # Purple-ish
+                        6: (100, 200, 200),  # Cyan-ish
+                    }
+                    fallback_color = fallback_colors.get(color_value, (150, 150, 150))
+                    pygame.draw.rect(screen, fallback_color, 
+                                    (goods_x, goods_y, GOODS_SIZE, GOODS_SIZE))
+                    pygame.draw.rect(screen, (255, 255, 255), 
+                                    (goods_x, goods_y, GOODS_SIZE, GOODS_SIZE), 1)
 
     # ===============================
     # DEPOT NOIR
