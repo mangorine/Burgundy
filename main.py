@@ -304,18 +304,16 @@ def try_place_tile_on_board(clicked_coord):
         toast(f"Besoin de {wk_needed} ouvriers")
         return
 
-    # ✅ IMPORTANT : on ne modifie workers/dé QUE si action_place réussit
+    # ✅ IMPORTANT : action_place_tile_from_storage gère déjà le dé et les ouvriers
     try:
         game.action_place_tile_from_storage(
             selected_storage_index,
             clicked_coord,
             game.global_round,
             die_val,
-            0
+            wk_needed  # passer les ouvriers nécessaires à la fonction
         )
-        # Si on arrive ici => placement validé
-        p_view.workers -= wk_needed
-        p_view.use_die(die_val)
+        # Si on arrive ici => placement validé (dé et ouvriers déjà consommés par la fonction)
 
         toast("Tuile placée ✔")
         reset_player_view_state()
