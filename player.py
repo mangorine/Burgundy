@@ -180,7 +180,7 @@ class Player:
         Check si le joueur possède une tuile jaune avec id
         """
         for effect in self.yellow_effects:
-            if effect.tile_id == tile_id:
+            if effect is not None and effect.tile_id == tile_id:
                 return True
         return False
     
