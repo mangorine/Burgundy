@@ -14,6 +14,12 @@ Détection de Régions (Zoning) : Pour éviter de recalculer la connectivité de
 
 Gestion des Dépendances Circulaires : L'interdépendance entre le plateau (Board) et le joueur (Player) pour vérifier les règles est résolue par l'utilisation de if TYPE_CHECKING: et d'annotations par chaînes de caractères, permettant à l'analyseur statique de fonctionner sans provoquer d'erreurs d'importation à l'exécution.
 
+Tuiles Jaunes : Elles introduisent des exceptions aux règles (revenus, modifications de placement, score de fin de partie). Une classe de base YellowTile se divise en trois sous-classes immuables :
+Income : Pour les gains de ressources.
+RuleModification : Pour les changements de règles de jeu.
+Scoring : Pour les points de victoire en fin de partie.
+Pour les RuleModification (modifications de règles), le code ne peut pas deviner comment altérer le flux du jeu. Le moteur doit vérifier explicitement la présence de ces pouvoirs. Par exemple, lorsqu'on vérifie si une tuile bâtiment peut être posée (can_place_tile_at), le code contient une "béquille" spécifique pour la tuile jaune, c'est la méthode de placement qui demande "Est-ce que l'exception X est active ?". (NB:  en gros c'est hardcode dans le jue, au lieu de creer une fonction en plus on modifie carrement une fonction a un niveau plus bas d'abstraction)
+
 # Player implementation
 
 # Game implementation
