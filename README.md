@@ -6,64 +6,16 @@ BOARD GAME : CASTLES OF BURGUNDY
 
 Rules of the games here : [Rules](rules_burgundy.pdf)
 
-# Class Building
+# BOARD implementation choices + Tiles 
 
-## Variable names used in reference of Player class
+Géométrie Hexagonale et Grille : La représentation d'un plateau non rectangulaire avec 6 voisins par case a été résolue par l'utilisation de coordonnées axiales ($q, r$) plutôt qu'un tableau 2D standard. Plutôt qu'un tableau à deux dimensions (qui contiendrait beaucoup de "vide" vu la forme du plateau), la grille est stockée dans un dictionnaire self.grid: Dict[Tuple[int, int], Slot]. Cela permet de gérer facilement les trous dans la map ou des formes irrégulières. Cela simplifie aussi grandement le calcul des voisins, qui se fait par simple addition de vecteurs (ex: (1, 0), (1, -1), etc.)
 
-In the building class, we assumed that the following attributes and methods existed.
-Attributes:
-- silverlings (number of silverlings)
-- goods (list of the goods)
-- full (boolean that tells us if the player's inventory is full or not)
-- personal_slots (list of the tiles of the inventory)
-- workers (number of workers)
+Détection de Régions (Zoning) : Pour éviter de recalculer la connectivité des zones à chaque action, le code utilise une approche de pré-calcul. Un algorithme de "Flood Fill" est exécuté une seule fois à l'initialisation (_build_regions) pour générer des objets Region statiques, permettant de vérifier instantanément si une zone est complétée (is_completed). Les régions sont stockées sous forme d'objets Region contenant la liste de leurs slots. Lorsqu'on pose une tuile, on récupère simplement l'objet région associé via get_region_by_coord pour vérifier s'il est complet (is_completed()). C'est un choix d'optimisation efficace.
 
-Methods:
-- choose(str:name) (it takes a parameter name which corresponds to the tile effect and lets the player choose tiles according to the effect in place, it return the tile chosen)
-- sell_good(good) (sells the good in question, don't forget to delete the good from the good inventory and to add the number of coins the player receives from the sell action)
+Gestion des Dépendances Circulaires : L'interdépendance entre le plateau (Board) et le joueur (Player) pour vérifier les règles est résolue par l'utilisation de if TYPE_CHECKING: et d'annotations par chaînes de caractères, permettant à l'analyseur statique de fonctionner sans provoquer d'erreurs d'importation à l'exécution.
 
-## Variable names used in reference of Board class
+# Player implementation
 
-In the Board class, we assumed that the following attributes and methods existed.
-Attributes:
-- building (list of buildings on the board)
-- castle (list of castles on the board)
-- mine (list of mines on the board)
-- knowledge (list of knowledge tiles on the board)
+# Game implementation
 
-Methods:
-- 
-# Class board 
-
-To do : inter exclusive buildings : page 6.
-
-# Class Action
-
-We create a class Action with the following actions:
-- Trade a die with a worker or a gold
-- Sell a good
-- Take a tile (from the board)
-- Buy a center tile (only once per phase)
-- Place a tile
-- Change die value
-- Discard a tile
-
-# How the game works
-
-Before each phase : [Phase](game_tuto.png)
-
-
-# things to do Emilie:
-check the action of every yellow tiles and add modifications where the action is taken into account
-
-# things to do:
-BIG THING: finish board, player board
-            then create a real player.py which will be connected to the two last files
-             change the methods with the yellow tiles
-
-little things, example of things to do in the last part:
-make a method that checks whether you can put a tile in your board (vicinity + building in the same town)
-after that: Emilie adds a method to implement yellow tile n°1
-
-# Yellow tiles
-So specific that I hard coded the rule modifications where they applied instead of doing someting generic
+# UI implementation
