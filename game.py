@@ -515,35 +515,36 @@ class Game:
         ctx: Dict[str, Any],
     ) -> None:
         """
-        Score des animaux : dans le jeu de base, tu marques des points
-        en fonction du nombre d'animaux identiques dans la région.
-
-        Version générique :
-        - animal_obj.animal_type (enum)
-        - animal_obj.count = nb d'animaux sur la tuile
-        - score = count * (nombre total de tuiles de ce type dans la région)
+        Score des animaux (règle officielle Châteaux de Bourgogne) :
+        - On marque les points de la tuile placée (2-4 animaux)
+        - PLUS les points de toutes les autres tuiles du MÊME type d'animal
+          dans la MÊME région (pâturage contigu)
+        
+        Exemple: Placer une tuile 4 vaches dans une région qui a déjà une tuile 3 vaches
+        => Score = 4 + 3 = 7 points
         """
         region = player.board.get_region_by_coord(coord)
         if region is None:
             return
 
         atype = getattr(animal_obj, "animal_type", None)
-        count_on_tile = getattr(animal_obj, "count", 1)
-
         if atype is None:
             return
 
-        total_tiles_same_type = 0
+        # Compter les points de TOUS les animaux du même type dans la région
+        # (y compris la tuile qu'on vient de placer)
+        total_animal_points = 0
         for slot in region.slots:
             if (
                 slot.is_occupied
+                and slot.tile is not None
+                and hasattr(slot.tile, 'tile')
                 and isinstance(slot.tile.tile, Animal)
                 and getattr(slot.tile.tile, "animal_type", None) == atype
             ):
-                total_tiles_same_type += 1
+                total_animal_points += getattr(slot.tile.tile, "count", 1)
 
-        gained_points = count_on_tile * total_tiles_same_type
-        player.gain_victory_points(gained_points)
+        player.gain_victory_points(total_animal_points)
 
     # ---------- CASTLE ----------
 

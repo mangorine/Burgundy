@@ -336,6 +336,16 @@ class Player:
     # Income Tiles (Phase-based)
     # =============================
     
+    def collect_mine_income(self) -> int:
+        """
+        À la fin de chaque phase, chaque joueur gagne 1 silverling par mine placée.
+        Retourne le nombre de silverlings gagnés.
+        """
+        num_mines = self._count_mines_on_board()
+        if num_mines > 0:
+            self.gain_silverlings(num_mines)
+        return num_mines
+    
     # Tuile 2
     def apply_end_of_phase_income(self) -> None:
         """
