@@ -45,3 +45,22 @@ Architecture Dispatcher pour les Effets : La méthode _apply_tile_effect agit co
 Machine à États du TurnManager : Le TurnManager isole la gestion du flux (actions restantes) de la validation des règles. Cette abstraction simplifie la boucle de jeu et permet d'intégrer aisément des exceptions, comme les actions gratuites, en manipulant simplement le compteur d'actions sans altérer la structure du moteur principal.
 
 # UI implementation
+UI Implementation (Pygame)
+
+L’interface graphique est développée avec Pygame et agit comme une couche d’interaction entre l’utilisateur et le moteur de jeu.
+Elle gère :
+la sélection des dés et des tuiles
+
+la navigation entre le plateau central et les plateaux joueurs
+
+l’affichage des aides visuelles et messages contextuels
+
+Pour améliorer l’ergonomie, l’UI effectue certaines pré-validations locales (sélections valides, coûts visibles, aides de placement via legal_coords).
+Ces vérifications servent uniquement à guider le joueur et à éviter des interactions inutiles.
+
+Toute action impactant l’état du jeu est cependant systématiquement validée par le moteur, via des méthodes transactionnelles du Game (ex : action_place_tile_from_storage).
+En cas de divergence, la décision du moteur prévaut.
+
+Les actions nécessitant un choix utilisateur supplémentaire (ex : sélection d’un dépôt lors du placement d’un bateau) sont gérées via un état intermédiaire (pending_ship_placement) et transmises au moteur grâce à extra_context.
+
+Ce compromis permet une interface fluide tout en conservant un moteur fiable et cohérent.
