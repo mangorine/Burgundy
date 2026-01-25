@@ -22,6 +22,26 @@ Pour les RuleModification (modifications de règles), le code ne peut pas devine
 
 # Player implementation
 
+Gestion Centralisée des Ressources et États : L'utilisation d'une @dataclass réduit le code superflu tout en garantissant l'intégrité des données. La classe impose l'usage de méthodes transactionnelles (spend_workers, etc.) qui encapsulent la validation directement dans le modèle. Cela empêche l'existence d'états invalides (comme un nombre négatif d'ouvriers) indépendamment de la complexité de l'interface ou de l'IA appelante.
+
+Stockage Tuiles et Marchandises : La classe distingue deux logiques de stockage. Pour les tuiles, une limite stricte de quantité est appliquée. Pour les marchandises, la limite porte sur la variété (max 3 types) et non la quantité. L'utilisation d'un simple Set pour vérifier l'unicité des couleurs en O(n) remplace avantageusement des structures complexes, simplifiant la gestion et la sérialisation de l'état.
+
+Mécanique Modulaire des Dés : La modification des dés est traitée comme un problème de distance cyclique. L'algorithme calcule instantanément (O(1)) la distance minimale bidirectionnelle (horaire et anti-horaire) via l'arithmétique modulaire. Cela rend la vérification de faisabilité immédiate, même avec des coûts variables ou des modificateurs de règles.
+
+Centralisation des Règles Spéciales : La classe Player agit comme un adaptateur pour les Tuiles Jaunes. Plutôt que de laisser le moteur vérifier la présence de tuiles spécifiques, il interroge le joueur sur ses capacités (ex: get_die_adjustment_per_worker). Cette abstraction centralise les exceptions dans l'objet joueur, évitant de polluer le moteur principal avec des vérifications conditionnelles.
+
+Pré-calcul de l'Espace d'Action : La classe expose l'espace d'action complet via des méthodes de pré-calcul (get_valid_placement_coords). En croisant l'état du plateau et des dés, elle fournit directement la liste des coups légaux et leur coût exact. Cela décharge le contrôleur (IA ou UI) de la complexité des règles de validation.
+
 # Game implementation
+
+Validation Transactionnelle : La méthode centrale action_place_tile_from_storage applique un modèle de sécurité atomique. Toutes les contraintes (dés, topologie, coûts) sont validées avant la moindre modification d'état. Cette approche prévient la corruption des données en garantissant qu'aucune ressource n'est consommée pour une action qui serait finalement illégale.
+
+Injection de Contexte et Découplage UI : L'argument extra_context permet de gérer les choix utilisateur (ex: quel dépôt vider) sans interrompre le flux d'exécution. Ce dictionnaire permet à l'interface de pré-configurer les décisions nécessaires aux effets complexes, facilitant également la gestion des actions imbriquées (récursivité) comme celles de la Mairie.
+
+Algorithme de Priorité du Pont : L'ordre du tour est géré par une clé de tri composite (-position, -priorité). Un compteur global incrémental assure que le dernier arrivant sur une case obtient toujours la priorité maximale. Cela simule mathématiquement l'empilement physique des pions sans nécessiter de structures de données complexes.
+
+Architecture Dispatcher pour les Effets : La méthode _apply_tile_effect agit comme un routeur pour déléguer la logique. Elle détecte le type de tuile et redirige vers des méthodes spécialisées, assurant une forte modularité : modifier une règle spécifique (ex: animaux) n'a aucun impact collatéral sur les autres types de tuiles.
+
+Machine à États du TurnManager : Le TurnManager isole la gestion du flux (actions restantes) de la validation des règles. Cette abstraction simplifie la boucle de jeu et permet d'intégrer aisément des exceptions, comme les actions gratuites, en manipulant simplement le compteur d'actions sans altérer la structure du moteur principal.
 
 # UI implementation
