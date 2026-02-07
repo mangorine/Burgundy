@@ -77,7 +77,7 @@ BACK_BUTTON = pygame.Rect(20, 20, 180, 40)
 HUD_RECT = pygame.Rect(WIDTH - 320, HEIGHT - 260, 300, 240)
 ROLL_BTN = pygame.Rect(HUD_RECT.x + 20, HUD_RECT.y + 190, 120, 35)
 ENDTURN_BTN = pygame.Rect(HUD_RECT.x + 160, HUD_RECT.y + 190, 120, 35)
-WORKER_ACTION_BTN = pygame.Rect(HUD_RECT.x + 20, HUD_RECT.y + 90, 120, 30)
+WORKER_ACTION_BTN = pygame.Rect(HUD_RECT.x + 20, HUD_RECT.y + 70, 120, 30)
 
 # Bouton Vendre sur le plateau joueur (près des marchandises)
 SELL_BTN_PLAYER = pygame.Rect(50, HEIGHT - 70, 120, 35)
@@ -109,6 +109,21 @@ def replenish_black_depot():
         else:
             break
     print(f"[UI] Black depot replenished with {len(board.black_depot)} tiles")
+
+
+def replenish_main_depots():
+    """Replenish depots 1-6 with 4 tiles each from the hex supply at start of new phase."""
+    board = game.board
+    total_added = 0
+    for depot_id in range(1, 7):
+        board.depots[depot_id].clear()
+        for _ in range(4):
+            if board._hex_supply:
+                board.depots[depot_id].append(board._hex_supply.pop())
+                total_added += 1
+            else:
+                break
+    print(f"[UI] Main depots replenished with {total_added} tiles")
 
 
 def add_random_goods_to_depot():
@@ -171,8 +186,24 @@ def end_turn():
     # Vérifier si la partie est terminée (fin de Phase E = round 25)
     # Phase E = rounds 21-25, donc après round 25, global_round devient 26
     if game.global_round > 25:
+        # Fin de phase E: distribuer les revenus des mines
+        for p in game.players:
+            p.collect_mine_income()
+            p.apply_end_of_phase_income()
+            # Convertir les silverlings en points de victoire (1:1)
+            silver_to_vp = p.silverlings
+            p.victory_points += silver_to_vp
+            p.silverlings = 0
+            # Chaque marchandise invendue donne 1 PV
+            goods_to_vp = len(p.goods_storage)
+            p.victory_points += goods_to_vp
+            p.goods_storage.clear()
+            # Chaque 2 workers donnent 1 PV
+            workers_to_vp = p.workers // 2
+            p.victory_points += workers_to_vp
+            p.workers = p.workers % 2  # Garde le reste
         mode = MODE_GAME_OVER
-        toast("Partie terminée !")
+        toast("Partie terminée ! Ressources converties en PV.")
         return
     
     # Vérifier si on commence une nouvelle phase (round 6, 11, 16, 21)
@@ -184,9 +215,22 @@ def end_turn():
         add_random_goods_to_depot()
     
     if new_round != old_round and new_round in (6, 11, 16, 21):
+        # Fin de phase: distribuer les revenus des mines à tous les joueurs
+        phase_ended = chr(64 + ((new_round - 1) // 5))  # Phase qui vient de finir (A, B, C, D)
+        mine_income_msg = []
+        for p in game.players:
+            silver_gained = p.collect_mine_income()
+            p.apply_end_of_phase_income()  # Bonus tuile jaune #2 (workers par mine)
+            if silver_gained > 0:
+                mine_income_msg.append(f"{p.name}: +{silver_gained}$")
+        
         replenish_black_depot()
+        replenish_main_depots()
         phase_letter = chr(65 + ((new_round - 1) // 5))
-        toast(f"Nouvelle phase {phase_letter} ! Dépôt noir réapprovisionné.")
+        if mine_income_msg:
+            toast(f"Fin phase {phase_ended}: Mines → {', '.join(mine_income_msg)}. Nouvelle phase {phase_letter}!", 4.0)
+        else:
+            toast(f"Nouvelle phase {phase_letter} ! Dépôts réapprovisionnés.")
     
     p = turn_player()
     p.dice = []  # force reroll
@@ -315,8 +359,9 @@ def try_take_workers_action():
 def try_sell_goods():
     """
     Vendre des marchandises. Consomme un dé et vend TOUTES les marchandises
-    d'une même couleur correspondant à la valeur du dé (ou ajustée par ouvriers).
-    Chaque marchandise vendue donne 1 silverling (ou 2 avec tuile jaune 3).
+    d'une même couleur correspondant à la valeur du dé.
+    La valeur du dé doit correspondre à une couleur de marchandise que le joueur possède.
+    (COLOR_1 = dé 1, COLOR_2 = dé 2, etc.)
     """
     p = turn_player()
     die_val = get_selected_die(p)
@@ -328,22 +373,25 @@ def try_sell_goods():
         toast("Pas de marchandises à vendre")
         return
     
-    # Trouver les couleurs disponibles
-    colors_available = p.get_goods_colors_stored()
-    if not colors_available:
-        toast("Pas de marchandises à vendre")
+    # La valeur du dé correspond à la couleur (COLOR_1 = 1, COLOR_2 = 2, etc.)
+    try:
+        target_color = GoodsColor(die_val)
+    except ValueError:
+        toast(f"Valeur de dé {die_val} invalide pour les marchandises")
         return
     
-    # Vendre la première couleur disponible (simplifie l'UI)
-    # Dans une version avancée, on pourrait demander au joueur de choisir
-    color_to_sell = list(colors_available)[0]
+    # Vérifier que le joueur possède des marchandises de cette couleur
+    colors_available = p.get_goods_colors_stored()
+    if target_color not in colors_available:
+        toast(f"Pas de marchandise de couleur {die_val} à vendre")
+        return
     
     try:
-        sold_count = p.sell_goods_of_color(color_to_sell)
+        sold_count = p.sell_goods_of_color(target_color)
         p.use_die(die_val)
         clear_dice_ui()
         silverlings = p.get_silverlings_per_good_sold() * sold_count
-        toast(f"Vendu {sold_count} marchandise(s) → +{silverlings} silverlings !")
+        toast(f"Vendu {sold_count} marchandise(s) couleur {die_val} → +{silverlings} silverlings !")
     except Exception as e:
         toast(str(e))
 
