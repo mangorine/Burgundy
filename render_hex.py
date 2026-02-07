@@ -82,7 +82,7 @@ def get_tile_image(tile_or_type):
 
     base_name = None
 
-    # --- Cas 1 : objet Tile complet ---
+    #  Cas 1 : objet Tile complet 
     if hasattr(tile_or_type, "tile_type"):
         t = tile_or_type
         ttype = t.tile_type
@@ -110,7 +110,7 @@ def get_tile_image(tile_or_type):
         else:
             base_name = str(ttype.name).lower()
 
-    # --- Cas 2 : juste un TileType ---
+    #  Cas 2 : juste un TileType 
     elif hasattr(tile_or_type, "name"):
         base_name = str(tile_or_type.name).lower()
 
@@ -176,7 +176,7 @@ def get_masked_hex_image(image, size):
     # IMPORTANT: pour garder la transparence correctement, on utilise BLEND_RGBA_MULT
     # avec un masque déjà présent en alpha.
     # Technique simple: on blit l'image puis on "coupe" via le masque alpha.
-    # -> On fait l’inverse: on crée un surf, on met l’image, puis on applique le masque alpha.
+    # On fait l’inverse: on crée un surf, on met l’image, puis on applique le masque alpha.
     img_surf = pygame.Surface((surf_size, surf_size), pygame.SRCALPHA)
     img_surf.blit(img_scaled, (0, 0))
     img_surf.blit(temp_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
@@ -204,24 +204,24 @@ def draw_player_board(surface, player_board, origin, font_debug, selected_hex=No
         center = axial_to_pixel(q, r, origin)
         base_color = TILE_COLORS.get(slot.allowed_type, EMPTY_COLOR)
 
-        # --- Tuile / case ---
+        # Tuile / case 
         if slot.is_occupied:
             draw_hex(surface, center, base_color, HEX_SIZE, slot.tile)
         else:
             empty_fill = [max(0, c - 40) for c in base_color]
             draw_hex(surface, center, empty_fill, HEX_SIZE)
 
-        # --- HIGHLIGHT COUPS LÉGAUX ---
+        # HIGHLIGHT COUPS LÉGAUX
         if legal_coords and (q, r) in legal_coords:
             points = hex_corners(center, HEX_SIZE)
             pygame.draw.polygon(surface, (0, 255, 0), points, 3)
 
-        # --- SÉLECTION ---
+        #  SÉLECTION 
         if selected_hex == (q, r):
             pygame.draw.circle(surface, (255, 255, 0), center, 6)
 
      # DEBUG : afficher coordonnées et valeur du slot
-   # --- AFFICHAGE DE LA VALEUR DE DÉ DE LA CASE ---
+   #  AFFICHAGE DE LA VALEUR DE DÉ DE LA CASE 
         if font_debug and slot.dice_value is not None:
             label = font_debug.render(str(slot.dice_value), True, (255, 255, 255))
             label_rect = label.get_rect(center=(center[0], center[1] + 14))

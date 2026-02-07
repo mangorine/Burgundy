@@ -224,7 +224,7 @@ def try_take_from_depot(depot_id: int, tile_index: int):
         return
 
     try:
-        tile = depot.pop(tile_index)            # <-- exact tile
+        tile = depot.pop(tile_index)            
         if workers_needed > 0:
             p.workers -= workers_needed
 
@@ -292,7 +292,6 @@ def try_buy_black(tile_index: int = 0):
         tile = black.pop(tile_index)
         p.silverlings -= 2
         p.add_hex_to_storage(tile)
-        # PAS de p.use_die() - l'achat du dépôt noir ne consomme pas de dé
         toast("Tuile noire achetée (2 silverlings)")
     except Exception as e:
         toast(str(e))
@@ -361,7 +360,7 @@ def compute_legal_coords_for_storage_tile(player, storage_index):
 
     tile_type = tile.tile_type
 
-    # get_valid_placement_coords() renvoie déjà des coords "posables" selon règles de ton Player
+    # get_valid_placement_coords() renvoie déjà des coords "posables" selon règles de Player
     # on filtre en plus sur type de région
     try:
         for coord, die_val, wk in player.get_valid_placement_coords():
@@ -552,13 +551,12 @@ while running:
                 toast(f"Layout {selected_layout_id}", 1.0)
 
             if event.key == pygame.K_RETURN:
-                game = Game(["Alice", "Bob", "Clément", "Diane"])#players name
+                game = Game(["Alice", "Bob", "Clément", "Diane"])#nom joueur
                 for i, p in enumerate(game.players):
                     # init board/layout
                     p.layout_id = selected_layout_id
-                    p.__post_init__()  # ta logique existante
-
-                    # évite l'erreur render_central.py: p.color
+                    p.__post_init__() 
+                    #couleur joueur
                     p.color = PLAYER_COLORS[i]
                     p.is_active = (i == 0)
 
@@ -621,7 +619,7 @@ while running:
             # (C) HUD boutons
             if HUD_RECT.collidepoint(mx, my):
                 if ROLL_BTN.collidepoint(mx, my):
-                    # pas de roll en vue player (comme tu veux)
+                    # pas de roll en vue player 
                     if current_view != VIEW_CENTRAL:
                         toast("Roll uniquement sur le plateau central")
                     else:
@@ -704,7 +702,7 @@ while running:
                     # Clic sur les marchandises - ne rien faire (utiliser le bouton Vendre)
                     continue
 
-                # 3) clic sur storage => sélection tuile + calc legal coords
+                # 3) clic sur storage => sélection tuile + calcul des coups légaux
                 storage_origin = (WIDTH // 2 - 90, HEIGHT - 120)
                 clicked_storage = False
                 for i in range(3):
@@ -789,9 +787,6 @@ while running:
             draw_button(screen, rect, f"Joueur {i+1}", FONT_SMALL, active=(i == viewed_player_index))
     else:
         p_v = viewed_player()
-
-        # ton draw_player_board modifié (avec FONT_DEBUG en param)
-        # signature attendue chez toi: draw_player_board(surface, player_board, origin, font_debug, selected_hex, legal_coords)
         hovered = pixel_to_axial(mx, my, BOARD_ORIGIN)
         try:
             draw_player_board(screen, p_v.board, BOARD_ORIGIN, FONT_DEBUG, hovered, legal_coords)
@@ -809,7 +804,7 @@ while running:
         
         draw_button(screen, BACK_BUTTON, "← Central", FONT_SMALL)
 
-    # HUD (toujours visible)
+    # HUD (à droite)
     draw_panel(screen, HUD_RECT)
     p_t = turn_player()
     screen.blit(FONT_SMALL.render(f"TOUR DE : {p_t.name}", True, (255, 255, 0)), (HUD_RECT.x + 20, HUD_RECT.y + 15))
@@ -820,7 +815,7 @@ while running:
 
     draw_button(screen, WORKER_ACTION_BTN, "+2 Ouvriers", FONT_SMALL)
 
-    # Dés cliquables + highlight par INDEX (plus de bug si deux dés ont même valeur)
+    # Dés cliquables + highlight par INDEX (si sélectionné)
     DIE_RECTS.clear()
     for i, val in enumerate(getattr(p_t, "dice", [])):
         dx, dy = HUD_RECT.x + 60 + i * 80, HUD_RECT.y + 140
